@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  erp-auth-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: erp-auth-service
+    environment:
+    - SPRING_PROFILES_ACTIVE=docker
+    - SPRING_DATA_REDIS_HOST=cache
+    - SPRING_DATA_REDIS_PORT=6379
+    - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/erp_auth
+    - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+    - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+    - MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://otel-collector:4318
+    - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+    - MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED=false
+    ports:
+      - "8081:8081"
+    networks:
+      - erp-platform
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        tag: "{{.Name}}"
+
+networks:
+  erp-platform:
+    external: true
