@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/erp_auth
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  data:
+    redis:
+      host: cache
+      port: 6379
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0 # 100% en dev
+
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces
+
+logging:
+  level:
+    root: INFO
