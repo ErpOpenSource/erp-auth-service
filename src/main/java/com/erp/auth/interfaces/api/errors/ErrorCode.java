@@ -1,0 +1,13 @@
+package com.erp.auth.interfaces.api.errors;
+
+public enum ErrorCode {
+    SEAT_LIMIT_REACHED,
+    INVALID_CREDENTIALS,
+    USER_LOCKED,
+    USER_DISABLED,
+    SESSION_REVOKED,
+    INVALID_REFRESH_TOKEN,
+    REFRESH_REUSE_DETECTED,
+    VALIDATION_ERROR,
+    INTERNAL_ERROR
+}
