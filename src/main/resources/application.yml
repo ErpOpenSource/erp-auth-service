@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: erp-auth-service
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.1 # default; en dev lo subimos a 1.0
+
+logging:
+  level:
+    root: INFO
