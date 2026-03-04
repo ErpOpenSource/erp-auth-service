@@ -38,6 +38,9 @@ public class AuditEventEntity {
     @Column(name = "trace_id", length = 128)
     private String traceId;
 
+    @Column(name = "request_id", length = 128)
+    private String requestId;
+
     @Column(name = "metadata", nullable = false, columnDefinition = "jsonb")
     @ColumnTransformer(write = "?::jsonb")
     private String metadataJson; // simple; luego podemos mapear a JsonNode
@@ -62,6 +65,9 @@ public class AuditEventEntity {
 
     public String getTraceId() { return traceId; }
     public void setTraceId(String traceId) { this.traceId = traceId; }
+
+    public String getRequestId() { return requestId; }
+    public void setRequestId(String requestId) { this.requestId = requestId; }
 
     public String getMetadataJson() { return metadataJson; }
     public void setMetadataJson(String metadataJson) { this.metadataJson = metadataJson; }

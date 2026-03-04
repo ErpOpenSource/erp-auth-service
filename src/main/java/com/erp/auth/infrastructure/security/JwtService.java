@@ -11,7 +11,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
+import java.util.List;
 
 @Component
 public class JwtService {
@@ -38,8 +38,33 @@ public class JwtService {
             String username,
             String sessionId
     ) {
+        return generateAccessToken(userId, username, sessionId, List.of(), List.of(), List.of(), List.of());
+    }
+
+    public String generateAccessToken(
+            String userId,
+            String username,
+            String sessionId,
+            List<String> roles
+    ) {
+        return generateAccessToken(userId, username, sessionId, roles, List.of(), List.of(), List.of());
+    }
+
+    public String generateAccessToken(
+            String userId,
+            String username,
+            String sessionId,
+            List<String> roles,
+            List<String> modules,
+            List<String> departments,
+            List<String> permissions
+    ) {
 
         Instant now = Instant.now();
+        List<String> safeRoles = roles == null ? List.of() : roles;
+        List<String> safeModules = modules == null ? List.of() : modules;
+        List<String> safeDepartments = departments == null ? List.of() : departments;
+        List<String> safePermissions = permissions == null ? List.of() : permissions;
 
         var claims = JwtClaimsSet.builder()
                 .issuer("erp-auth-service")
@@ -48,6 +73,10 @@ public class JwtService {
                 .subject(userId)
                 .claim("preferred_username", username)
                 .claim("sid", sessionId)
+                .claim("roles", safeRoles)
+                .claim("modules", safeModules)
+                .claim("departments", safeDepartments)
+                .claim("permissions", safePermissions)
                 .build();
 
         var header = JwsHeader.with(MacAlgorithm.HS256).type("JWT").build();

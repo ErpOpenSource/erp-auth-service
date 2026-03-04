@@ -16,7 +16,12 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 ENV JAVA_OPTS=""
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/*.jar /app/app.jar
 
 EXPOSE 8081
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
+  CMD curl --silent --fail http://localhost:8081/actuator/health/readiness || exit 1
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]

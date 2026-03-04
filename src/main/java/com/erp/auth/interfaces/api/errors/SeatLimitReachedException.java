@@ -8,7 +8,7 @@ public class SeatLimitReachedException extends ApiException {
     public SeatLimitReachedException(int maxSeats, int activeSeats) {
         super(
             ErrorCode.SEAT_LIMIT_REACHED,
-            HttpStatus.TOO_MANY_REQUESTS,
+            HttpStatus.CONFLICT,
             "Concurrent seat limit reached.",
             Map.of("maxSeats", maxSeats, "activeSeats", activeSeats)
         );

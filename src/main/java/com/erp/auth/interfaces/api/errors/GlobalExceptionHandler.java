@@ -2,7 +2,6 @@ package com.erp.auth.interfaces.api.errors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,20 +17,14 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ApiException.class)
-    public ResponseEntity<ApiError> handleApiException(ApiException ex) {
+    public ResponseEntity<ApiErrorResponse> handleApiException(ApiException ex) {
         log.warn("API exception: code={}, status={}, message={}", ex.getCode(), ex.getHttpStatus().value(), ex.getMessage());
-        ApiError body = new ApiError(
-                ex.getCode().name(),
-                ex.getMessage(),
-                mdc("requestId"),
-                mdc("traceId"),
-                ex.getDetails()
-        );
+        ApiErrorResponse body = ErrorResponseFactory.fromApiException(ex);
         return ResponseEntity.status(ex.getHttpStatus()).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> details = new HashMap<>();
         Map<String, String> fieldErrors = new HashMap<>();
 
@@ -41,37 +34,20 @@ public class GlobalExceptionHandler {
         details.put("fields", fieldErrors);
         log.warn("Validation error: {}", fieldErrors);
 
-        ApiError body = new ApiError(
-                ErrorCode.VALIDATION_ERROR.name(),
-                "Validation error.",
-                mdc("requestId"),
-                mdc("traceId"),
-                details
-        );
+        ApiErrorResponse body = ErrorResponseFactory.validation(details);
         return ResponseEntity.badRequest().body(body);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+    public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex) {
         ApiException apiCause = findApiCause(ex);
         if (apiCause != null) {
             return handleApiException(apiCause);
         }
 
         log.error("Unexpected exception type={}", ex.getClass().getName(), ex);
-        ApiError body = new ApiError(
-                ErrorCode.INTERNAL_ERROR.name(),
-                "Unexpected error.",
-                mdc("requestId"),
-                mdc("traceId"),
-                null
-        );
+        ApiErrorResponse body = ErrorResponseFactory.internal();
         return ResponseEntity.internalServerError().body(body);
-    }
-
-    private static String mdc(String key) {
-        String v = MDC.get(key);
-        return (v == null || v.isBlank()) ? null : v;
     }
 
     private static ApiException findApiCause(Throwable ex) {

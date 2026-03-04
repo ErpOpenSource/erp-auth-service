@@ -30,9 +30,9 @@ management:
 auth:
   jwt:
     # minimo 32 bytes recomendado para HS256 en serio
-    secret: "change-this-super-secret-key-very-long-32-bytes-min"
-    access-token-expiration-minutes: 15
+    secret: ${AUTH_JWT_SECRET:change-this-super-secret-key-very-long-32-bytes-min}
+    access-token-expiration-minutes: ${AUTH_JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:15}
   refresh:
-    expiration-days-default: 7
-    expiration-days-remember-me: 30
-    pepper: "change-me-pepper"
+    expiration-days-default: ${AUTH_REFRESH_EXPIRATION_DAYS_DEFAULT:7}
+    expiration-days-remember-me: ${AUTH_REFRESH_EXPIRATION_DAYS_REMEMBER_ME:30}
+    pepper: ${AUTH_REFRESH_PEPPER:change-me-pepper}

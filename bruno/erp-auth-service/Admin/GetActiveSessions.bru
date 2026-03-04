@@ -1,0 +1,31 @@
+meta {
+  name: Admin Get Active Sessions
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/admin/sessions/active
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  X-Request-Id: {{requestId}}
+  User-Agent: Bruno
+}
+
+script:pre-request {
+  const rid = `bru-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  bru.setVar("requestId", rid);
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

@@ -2,7 +2,7 @@ package com.erp.auth.interfaces.api.errors;
 
 import java.util.Map;
 
-public record ApiError(
+public record ApiErrorResponse(
         String code,
         String message,
         String requestId,

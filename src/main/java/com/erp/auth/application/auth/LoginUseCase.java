@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -30,6 +29,7 @@ public class LoginUseCase {
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
     private final AuditService auditService;
+    private final UserAuthorizationService userAuthorizationService;
 
     private final long accessTokenMinutes;
     private final int refreshDaysDefault;
@@ -43,6 +43,7 @@ public class LoginUseCase {
             RefreshTokenService refreshTokenService,
             JwtService jwtService,
             AuditService auditService,
+            UserAuthorizationService userAuthorizationService,
             @Value("${auth.jwt.access-token-expiration-minutes}") long accessTokenMinutes,
             @Value("${auth.refresh.expiration-days-default}") int refreshDaysDefault,
             @Value("${auth.refresh.expiration-days-remember-me}") int refreshDaysRememberMe
@@ -54,6 +55,7 @@ public class LoginUseCase {
         this.refreshTokenService = refreshTokenService;
         this.jwtService = jwtService;
         this.auditService = auditService;
+        this.userAuthorizationService = userAuthorizationService;
         this.accessTokenMinutes = accessTokenMinutes;
         this.refreshDaysDefault = refreshDaysDefault;
         this.refreshDaysRememberMe = refreshDaysRememberMe;
@@ -123,10 +125,15 @@ public class LoginUseCase {
         sessionRepo.save(session);
 
         // 6) tokens
+        UserAuthorizationContext authorization = userAuthorizationService.resolveForUser(user.getId());
         String accessToken = jwtService.generateAccessToken(
                 user.getId().toString(),
                 user.getUsername(),
-                session.getId().toString()
+                session.getId().toString(),
+                authorization.roles(),
+                authorization.modules(),
+                authorization.departments(),
+                authorization.permissions()
         );
 
         auditService.record("LOGIN_SUCCESS", user, user, session,
@@ -142,7 +149,10 @@ public class LoginUseCase {
                         user.getId(),
                         user.getUsername(),
                         user.getStatus().name(),
-                        List.of() // roles vacío por ahora
+                        authorization.roles(),
+                        authorization.modules(),
+                        authorization.departments(),
+                        authorization.permissions()
                 )
         );
     }

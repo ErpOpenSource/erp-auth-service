@@ -1,6 +1,8 @@
 package com.erp.auth.interfaces.api.errors;
 
 public enum ErrorCode {
+    UNAUTHORIZED,
+    ACCESS_DENIED,
     SEAT_LIMIT_REACHED,
     INVALID_CREDENTIALS,
     USER_LOCKED,

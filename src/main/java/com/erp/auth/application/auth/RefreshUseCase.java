@@ -22,6 +22,7 @@ public class RefreshUseCase {
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
     private final AuditService auditService;
+    private final UserAuthorizationService userAuthorizationService;
     private final long accessTokenMinutes;
 
     public RefreshUseCase(
@@ -29,16 +30,18 @@ public class RefreshUseCase {
             RefreshTokenService refreshTokenService,
             JwtService jwtService,
             AuditService auditService,
+            UserAuthorizationService userAuthorizationService,
             @Value("${auth.jwt.access-token-expiration-minutes}") long accessTokenMinutes
     ) {
         this.sessionRepo = sessionRepo;
         this.refreshTokenService = refreshTokenService;
         this.jwtService = jwtService;
         this.auditService = auditService;
+        this.userAuthorizationService = userAuthorizationService;
         this.accessTokenMinutes = accessTokenMinutes;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RefreshReuseDetectedException.class)
     public RefreshResponse execute(RefreshCommand cmd) {
 
         OffsetDateTime now = OffsetDateTime.now();
@@ -98,10 +101,15 @@ public class RefreshUseCase {
         sessionRepo.save(session);
 
         // 5) Nuevo access token (sid y sub se mantienen)
+        UserAuthorizationContext authorization = userAuthorizationService.resolveForUser(session.getUser().getId());
         String accessToken = jwtService.generateAccessToken(
                 session.getUser().getId().toString(),
                 session.getUser().getUsername(),
-                session.getId().toString()
+                session.getId().toString(),
+                authorization.roles(),
+                authorization.modules(),
+                authorization.departments(),
+                authorization.permissions()
         );
 
         auditService.record("REFRESH_SUCCESS", session.getUser(), session.getUser(), session,

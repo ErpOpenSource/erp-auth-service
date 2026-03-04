@@ -15,6 +15,9 @@ public record LoginResponse(
             UUID id,
             String username,
             String status,
-            List<String> roles
+            List<String> roles,
+            List<String> modules,
+            List<String> departments,
+            List<String> permissions
     ) {}
 }
