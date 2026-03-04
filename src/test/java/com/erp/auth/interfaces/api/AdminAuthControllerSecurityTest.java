@@ -6,6 +6,7 @@ import com.erp.auth.application.admin.AdminSessionsUseCase;
 import com.erp.auth.application.admin.AdminUsersUseCase;
 import com.erp.auth.infrastructure.security.JwtService;
 import com.erp.auth.infrastructure.security.SecurityConfig;
+import com.erp.auth.interfaces.api.dto.AdminUserResponse;
 import com.erp.auth.interfaces.api.errors.SecurityAccessDeniedHandler;
 import com.erp.auth.interfaces.api.errors.SecurityAuthenticationEntryPoint;
 import com.erp.auth.interfaces.api.dto.SeatsResponse;
@@ -15,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -22,10 +24,13 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -88,13 +93,106 @@ class AdminAuthControllerSecurityTest {
                 .andExpect(status().isOk());
     }
 
-    private static String tokenWithRoles(List<String> roles) {
+    @Test
+    void revokeSessionDeleteAllowsAdminToken() throws Exception {
+        UUID actorUserId = UUID.randomUUID();
+        UUID actorSessionId = UUID.randomUUID();
+        UUID targetSessionId = UUID.randomUUID();
+        String adminToken = tokenWithRoles(actorUserId, actorSessionId, List.of("ADMIN"));
+
+        mockMvc.perform(delete("/admin/sessions/{id}", targetSessionId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isNoContent());
+
+        verify(adminSessionsUseCase).revoke(eq(actorUserId), eq(targetSessionId), any(), any());
+    }
+
+    @Test
+    void revokeAllSessionsDeleteUsesCurrentSessionFromToken() throws Exception {
+        UUID actorUserId = UUID.randomUUID();
+        UUID actorSessionId = UUID.randomUUID();
+        String adminToken = tokenWithRoles(actorUserId, actorSessionId, List.of("ADMIN"));
+
+        mockMvc.perform(delete("/admin/sessions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isNoContent());
+
+        verify(adminSessionsUseCase).revokeAllExcept(eq(actorUserId), eq(actorSessionId), any(), any());
+    }
+
+    @Test
+    void getUserAllowsAdminToken() throws Exception {
+        UUID actorUserId = UUID.randomUUID();
+        UUID actorSessionId = UUID.randomUUID();
+        UUID targetUserId = UUID.randomUUID();
+        String adminToken = tokenWithRoles(actorUserId, actorSessionId, List.of("ADMIN"));
+        when(adminUsersUseCase.getUser(eq(actorUserId), eq(targetUserId), any(), any()))
+                .thenReturn(new AdminUserResponse(
+                        targetUserId,
+                        "operator",
+                        "operator@erp.local",
+                        "ACTIVE",
+                        List.of("USER"),
+                        List.of("SALES"),
+                        List.of("HQ"),
+                        List.of("sales.order.read")
+                ));
+
+        mockMvc.perform(get("/admin/users/{id}", targetUserId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(targetUserId.toString()))
+                .andExpect(jsonPath("$.permissions[0]").value("sales.order.read"));
+    }
+
+    @Test
+    void updateUserAllowsAdminToken() throws Exception {
+        UUID actorUserId = UUID.randomUUID();
+        UUID actorSessionId = UUID.randomUUID();
+        UUID targetUserId = UUID.randomUUID();
+        String adminToken = tokenWithRoles(actorUserId, actorSessionId, List.of("ADMIN"));
+        when(adminUsersUseCase.updateUser(eq(actorUserId), eq(targetUserId), any(), any(), any()))
+                .thenReturn(new AdminUserResponse(
+                        targetUserId,
+                        "operator",
+                        "operator@erp.local",
+                        "ACTIVE",
+                        List.of("USER"),
+                        List.of("SALES"),
+                        List.of("HQ"),
+                        List.of("sales.order.read")
+                ));
+
+        String body = """
+                {
+                  "username": "operator",
+                  "email": "operator@erp.local",
+                  "status": "ACTIVE",
+                  "roles": ["USER"],
+                  "modules": ["SALES"],
+                  "departments": ["HQ"]
+                }
+                """;
+
+        mockMvc.perform(put("/admin/users/{id}", targetUserId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    private static String tokenWithRoles(UUID userId, UUID sessionId, List<String> roles) {
         JwtService jwtService = new JwtService(SECRET, 15);
         return jwtService.generateAccessToken(
-                UUID.randomUUID().toString(),
+                userId.toString(),
                 "admin",
-                UUID.randomUUID().toString(),
+                sessionId.toString(),
                 roles
         );
+    }
+
+    private static String tokenWithRoles(List<String> roles) {
+        return tokenWithRoles(UUID.randomUUID(), UUID.randomUUID(), roles);
     }
 }

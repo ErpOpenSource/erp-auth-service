@@ -3,6 +3,7 @@ package com.erp.auth.infrastructure.persistence.jpa.repository;
 import com.erp.auth.infrastructure.persistence.jpa.entity.UserRoleEntity;
 import com.erp.auth.infrastructure.persistence.jpa.entity.UserRoleId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -16,4 +17,8 @@ public interface UserRoleJpaRepository extends JpaRepository<UserRoleEntity, Use
         where ur.userId = :userId
     """)
     List<String> findRoleCodesByUserId(UUID userId);
+
+    @Modifying
+    @Query("delete from UserRoleEntity ur where ur.userId = :userId")
+    int deleteByUserId(UUID userId);
 }

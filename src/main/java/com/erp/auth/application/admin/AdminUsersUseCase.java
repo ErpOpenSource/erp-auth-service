@@ -1,6 +1,8 @@
 package com.erp.auth.application.admin;
 
 import com.erp.auth.application.audit.AuditService;
+import com.erp.auth.application.auth.UserAuthorizationContext;
+import com.erp.auth.application.auth.UserAuthorizationService;
 import com.erp.auth.infrastructure.persistence.jpa.entity.DepartmentEntity;
 import com.erp.auth.infrastructure.persistence.jpa.entity.ModuleEntity;
 import com.erp.auth.infrastructure.persistence.jpa.entity.RoleEntity;
@@ -11,12 +13,14 @@ import com.erp.auth.infrastructure.persistence.jpa.entity.UserRoleEntity;
 import com.erp.auth.infrastructure.persistence.jpa.repository.DepartmentJpaRepository;
 import com.erp.auth.infrastructure.persistence.jpa.repository.ModuleJpaRepository;
 import com.erp.auth.infrastructure.persistence.jpa.repository.RoleJpaRepository;
+import com.erp.auth.infrastructure.persistence.jpa.repository.SessionJpaRepository;
 import com.erp.auth.infrastructure.persistence.jpa.repository.UserJpaRepository;
 import com.erp.auth.infrastructure.persistence.jpa.repository.UserDepartmentJpaRepository;
 import com.erp.auth.infrastructure.persistence.jpa.repository.UserModuleJpaRepository;
 import com.erp.auth.infrastructure.persistence.jpa.repository.UserRoleJpaRepository;
 import com.erp.auth.infrastructure.security.PasswordHasher;
 import com.erp.auth.interfaces.api.dto.AdminCreateUserRequest;
+import com.erp.auth.interfaces.api.dto.AdminUpdateUserRequest;
 import com.erp.auth.interfaces.api.dto.AdminUserResponse;
 import com.erp.auth.interfaces.api.errors.ApiException;
 import com.erp.auth.interfaces.api.errors.ErrorCode;
@@ -29,6 +33,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -42,8 +47,10 @@ public class AdminUsersUseCase {
     private final UserRoleJpaRepository userRoleRepo;
     private final UserModuleJpaRepository userModuleRepo;
     private final UserDepartmentJpaRepository userDepartmentRepo;
+    private final SessionJpaRepository sessionRepo;
     private final PasswordHasher passwordHasher;
     private final AuditService auditService;
+    private final UserAuthorizationService userAuthorizationService;
 
     public AdminUsersUseCase(
             UserJpaRepository userRepo,
@@ -53,8 +60,10 @@ public class AdminUsersUseCase {
             UserRoleJpaRepository userRoleRepo,
             UserModuleJpaRepository userModuleRepo,
             UserDepartmentJpaRepository userDepartmentRepo,
+            SessionJpaRepository sessionRepo,
             PasswordHasher passwordHasher,
-            AuditService auditService
+            AuditService auditService,
+            UserAuthorizationService userAuthorizationService
     ) {
         this.userRepo = userRepo;
         this.roleRepo = roleRepo;
@@ -63,8 +72,10 @@ public class AdminUsersUseCase {
         this.userRoleRepo = userRoleRepo;
         this.userModuleRepo = userModuleRepo;
         this.userDepartmentRepo = userDepartmentRepo;
+        this.sessionRepo = sessionRepo;
         this.passwordHasher = passwordHasher;
         this.auditService = auditService;
+        this.userAuthorizationService = userAuthorizationService;
     }
 
     @Transactional
@@ -74,62 +85,11 @@ public class AdminUsersUseCase {
             String ip,
             String userAgent
     ) {
-        String username = request.username().trim();
-        String email = request.email() == null ? null : request.email().trim();
-        if (email != null && email.isBlank()) {
-            email = null;
-        }
-
-        if (userRepo.findByUsername(username).isPresent()) {
-            throw new ApiException(
-                    ErrorCode.VALIDATION_ERROR,
-                    HttpStatus.CONFLICT,
-                    "Username already exists.",
-                    Map.of("field", "username")
-            );
-        }
-        if (email != null && userRepo.findByEmail(email).isPresent()) {
-            throw new ApiException(
-                    ErrorCode.VALIDATION_ERROR,
-                    HttpStatus.CONFLICT,
-                    "Email already exists.",
-                    Map.of("field", "email")
-            );
-        }
-
-        List<String> roleCodes = normalizeRoleCodes(request.roles());
-        List<String> moduleCodes = normalizeCodes(request.modules());
-        List<String> departmentCodes = normalizeCodes(request.departments());
-
-        List<RoleEntity> roles = roleRepo.findByCodeIn(roleCodes);
-        if (roles.size() != roleCodes.size()) {
-            throw new ApiException(
-                    ErrorCode.VALIDATION_ERROR,
-                    HttpStatus.BAD_REQUEST,
-                    "Unknown role code(s).",
-                    Map.of("roles", findMissing(roleCodes, roles.stream().map(RoleEntity::getCode).toList()))
-            );
-        }
-
-        List<ModuleEntity> modules = moduleRepo.findByCodeIn(moduleCodes);
-        if (modules.size() != moduleCodes.size()) {
-            throw new ApiException(
-                    ErrorCode.VALIDATION_ERROR,
-                    HttpStatus.BAD_REQUEST,
-                    "Unknown module code(s).",
-                    Map.of("modules", findMissing(moduleCodes, modules.stream().map(ModuleEntity::getCode).toList()))
-            );
-        }
-
-        List<DepartmentEntity> departments = departmentRepo.findByCodeIn(departmentCodes);
-        if (departments.size() != departmentCodes.size()) {
-            throw new ApiException(
-                    ErrorCode.VALIDATION_ERROR,
-                    HttpStatus.BAD_REQUEST,
-                    "Unknown department code(s).",
-                    Map.of("departments", findMissing(departmentCodes, departments.stream().map(DepartmentEntity::getCode).toList()))
-            );
-        }
+        String username = normalizeUsername(request.username());
+        String email = normalizeEmail(request.email());
+        ensureUniqueUsername(username, null);
+        ensureUniqueEmail(email, null);
+        ResolvedAssignments assignments = resolveAssignments(request.roles(), request.modules(), request.departments());
 
         OffsetDateTime now = OffsetDateTime.now();
         UserEntity user = new UserEntity();
@@ -142,27 +102,7 @@ public class AdminUsersUseCase {
         user.setUpdatedAt(now);
         user = userRepo.save(user);
 
-        for (RoleEntity role : roles) {
-            UserRoleEntity userRole = new UserRoleEntity();
-            userRole.setUserId(user.getId());
-            userRole.setRoleId(role.getId());
-            userRole.setAssignedAt(now);
-            userRoleRepo.save(userRole);
-        }
-        for (ModuleEntity module : modules) {
-            UserModuleEntity userModule = new UserModuleEntity();
-            userModule.setUserId(user.getId());
-            userModule.setModuleId(module.getId());
-            userModule.setAssignedAt(now);
-            userModuleRepo.save(userModule);
-        }
-        for (DepartmentEntity department : departments) {
-            UserDepartmentEntity userDepartment = new UserDepartmentEntity();
-            userDepartment.setUserId(user.getId());
-            userDepartment.setDepartmentId(department.getId());
-            userDepartment.setAssignedAt(now);
-            userDepartmentRepo.save(userDepartment);
-        }
+        saveAssignments(user.getId(), now, assignments);
 
         UserEntity actor = userRepo.findById(actorUserId).orElse(null);
         auditService.record(
@@ -170,21 +110,102 @@ public class AdminUsersUseCase {
                 actor,
                 user,
                 null,
-                "{\"username\":\"" + safe(username) + "\",\"roles\":[" + toJsonArray(roleCodes) + "],"
-                        + "\"modules\":[" + toJsonArray(moduleCodes) + "],"
-                        + "\"departments\":[" + toJsonArray(departmentCodes) + "],"
+                "{\"username\":\"" + safe(username) + "\",\"roles\":[" + toJsonArray(assignments.roleCodes()) + "],"
+                        + "\"modules\":[" + toJsonArray(assignments.moduleCodes()) + "],"
+                        + "\"departments\":[" + toJsonArray(assignments.departmentCodes()) + "],"
                         + "\"ip\":\"" + safe(ip) + "\",\"userAgent\":\"" + safe(userAgent) + "\"}"
         );
 
-        return new AdminUserResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getStatus().name(),
-                roleCodes,
-                moduleCodes,
-                departmentCodes
+        UserAuthorizationContext context = userAuthorizationService.resolveForUser(user.getId());
+        return toResponse(user, context);
+    }
+
+    @Transactional(readOnly = true)
+    public AdminUserResponse getUser(
+            UUID actorUserId,
+            UUID targetUserId,
+            String ip,
+            String userAgent
+    ) {
+        UserEntity actor = userRepo.findById(actorUserId).orElse(null);
+        UserEntity target = requiredUser(targetUserId);
+        UserAuthorizationContext context = userAuthorizationService.resolveForUser(targetUserId);
+
+        auditService.record(
+                "ADMIN_USER_VIEW",
+                actor,
+                target,
+                null,
+                "{\"targetUserId\":\"" + targetUserId + "\",\"ip\":\"" + safe(ip) + "\",\"userAgent\":\"" + safe(userAgent) + "\"}"
         );
+        return toResponse(target, context);
+    }
+
+    @Transactional
+    public AdminUserResponse updateUser(
+            UUID actorUserId,
+            UUID targetUserId,
+            AdminUpdateUserRequest request,
+            String ip,
+            String userAgent
+    ) {
+        UserEntity actor = userRepo.findById(actorUserId).orElse(null);
+        UserEntity target = requiredUser(targetUserId);
+
+        String username = normalizeUsername(request.username());
+        String email = normalizeEmail(request.email());
+        UserEntity.UserStatus newStatus = normalizeStatus(request.status());
+        ResolvedAssignments assignments = resolveAssignments(request.roles(), request.modules(), request.departments());
+        validateSelfUpdateSafety(actorUserId, targetUserId, newStatus, assignments.roleCodes());
+
+        ensureUniqueUsername(username, targetUserId);
+        ensureUniqueEmail(email, targetUserId);
+
+        Set<String> currentRoleSet = toNormalizedSet(userRoleRepo.findRoleCodesByUserId(targetUserId), true);
+        Set<String> currentModuleSet = toNormalizedSet(userModuleRepo.findModuleCodesByUserId(targetUserId), true);
+        Set<String> currentDepartmentSet = toNormalizedSet(userDepartmentRepo.findDepartmentCodesByUserId(targetUserId), true);
+
+        boolean usernameChanged = !Objects.equals(target.getUsername(), username);
+        boolean emailChanged = !Objects.equals(target.getEmail(), email);
+        boolean statusChanged = target.getStatus() != newStatus;
+        boolean rolesChanged = !currentRoleSet.equals(new LinkedHashSet<>(assignments.roleCodes()));
+        boolean modulesChanged = !currentModuleSet.equals(new LinkedHashSet<>(assignments.moduleCodes()));
+        boolean departmentsChanged = !currentDepartmentSet.equals(new LinkedHashSet<>(assignments.departmentCodes()));
+        boolean assignmentsChanged = rolesChanged || modulesChanged || departmentsChanged;
+        boolean changed = usernameChanged || emailChanged || statusChanged || assignmentsChanged;
+
+        OffsetDateTime now = OffsetDateTime.now();
+        if (changed) {
+            target.setUsername(username);
+            target.setEmail(email);
+            target.setStatus(newStatus);
+            target.setUpdatedAt(now);
+            userRepo.save(target);
+        }
+
+        if (assignmentsChanged) {
+            replaceAssignments(targetUserId, now, assignments);
+        }
+
+        int revokedSessions = changed ? sessionRepo.revokeAllByUserId(targetUserId, now) : 0;
+        UserAuthorizationContext context = userAuthorizationService.resolveForUser(targetUserId);
+
+        auditService.record(
+                "ADMIN_USER_UPDATE",
+                actor,
+                target,
+                null,
+                "{\"targetUserId\":\"" + targetUserId + "\","
+                        + "\"status\":\"" + newStatus.name() + "\","
+                        + "\"changed\":" + changed + ","
+                        + "\"revokedSessions\":" + revokedSessions + ","
+                        + "\"roles\":[" + toJsonArray(assignments.roleCodes()) + "],"
+                        + "\"modules\":[" + toJsonArray(assignments.moduleCodes()) + "],"
+                        + "\"departments\":[" + toJsonArray(assignments.departmentCodes()) + "],"
+                        + "\"ip\":\"" + safe(ip) + "\",\"userAgent\":\"" + safe(userAgent) + "\"}"
+        );
+
+        return toResponse(target, context);
     }
 
     @Transactional
@@ -219,9 +240,11 @@ public class AdminUsersUseCase {
             return;
         }
 
+        OffsetDateTime now = OffsetDateTime.now();
         target.setPasswordHash(passwordHasher.hash(newPassword));
-        target.setUpdatedAt(OffsetDateTime.now());
+        target.setUpdatedAt(now);
         userRepo.save(target);
+        int revokedSessions = sessionRepo.revokeAllByUserId(targetUserId, now);
 
         auditService.record(
                 "ADMIN_USER_PASSWORD_RESET",
@@ -229,6 +252,7 @@ public class AdminUsersUseCase {
                 target,
                 null,
                 "{\"targetUserId\":\"" + targetUserId + "\",\"result\":\"UPDATED\","
+                        + "\"revokedSessions\":" + revokedSessions + ","
                         + "\"ip\":\"" + safe(ip) + "\",\"userAgent\":\"" + safe(userAgent) + "\"}"
         );
     }
@@ -256,13 +280,25 @@ public class AdminUsersUseCase {
             return;
         }
 
+        if (actorUserId.equals(targetUserId) && newStatus != UserEntity.UserStatus.ACTIVE) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "You cannot lock or disable your own account.",
+                    Map.of("status", newStatus.name())
+            );
+        }
+
         String result;
+        int revokedSessions = 0;
         if (target.getStatus() == newStatus) {
             result = "ALREADY_" + newStatus.name();
         } else {
+            OffsetDateTime now = OffsetDateTime.now();
             target.setStatus(newStatus);
-            target.setUpdatedAt(OffsetDateTime.now());
+            target.setUpdatedAt(now);
             userRepo.save(target);
+            revokedSessions = sessionRepo.revokeAllByUserId(targetUserId, now);
             result = "UPDATED";
         }
 
@@ -272,8 +308,220 @@ public class AdminUsersUseCase {
                 target,
                 null,
                 "{\"targetUserId\":\"" + targetUserId + "\",\"newStatus\":\"" + newStatus.name() + "\","
-                        + "\"result\":\"" + result + "\",\"ip\":\"" + safe(ip) + "\","
+                        + "\"result\":\"" + result + "\",\"revokedSessions\":" + revokedSessions + ","
+                        + "\"ip\":\"" + safe(ip) + "\","
                         + "\"userAgent\":\"" + safe(userAgent) + "\"}"
+        );
+    }
+
+    private ResolvedAssignments resolveAssignments(
+            List<String> rawRoles,
+            List<String> rawModules,
+            List<String> rawDepartments
+    ) {
+        List<String> roleCodes = normalizeRoleCodes(rawRoles);
+        List<String> moduleCodes = normalizeCodes(rawModules);
+        List<String> departmentCodes = normalizeCodes(rawDepartments);
+
+        List<RoleEntity> roles = roleRepo.findByCodeIn(roleCodes);
+        if (roles.size() != roleCodes.size()) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "Unknown role code(s).",
+                    Map.of("roles", findMissing(roleCodes, roles.stream().map(RoleEntity::getCode).toList()))
+            );
+        }
+
+        List<ModuleEntity> modules = moduleCodes.isEmpty() ? List.of() : moduleRepo.findByCodeIn(moduleCodes);
+        if (modules.size() != moduleCodes.size()) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "Unknown module code(s).",
+                    Map.of("modules", findMissing(moduleCodes, modules.stream().map(ModuleEntity::getCode).toList()))
+            );
+        }
+
+        List<DepartmentEntity> departments = departmentCodes.isEmpty() ? List.of() : departmentRepo.findByCodeIn(departmentCodes);
+        if (departments.size() != departmentCodes.size()) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "Unknown department code(s).",
+                    Map.of("departments", findMissing(departmentCodes, departments.stream().map(DepartmentEntity::getCode).toList()))
+            );
+        }
+
+        return new ResolvedAssignments(
+                roleCodes,
+                moduleCodes,
+                departmentCodes,
+                roles,
+                modules,
+                departments
+        );
+    }
+
+    private void saveAssignments(UUID userId, OffsetDateTime now, ResolvedAssignments assignments) {
+        for (RoleEntity role : assignments.roles()) {
+            UserRoleEntity userRole = new UserRoleEntity();
+            userRole.setUserId(userId);
+            userRole.setRoleId(role.getId());
+            userRole.setAssignedAt(now);
+            userRoleRepo.save(userRole);
+        }
+        for (ModuleEntity module : assignments.modules()) {
+            UserModuleEntity userModule = new UserModuleEntity();
+            userModule.setUserId(userId);
+            userModule.setModuleId(module.getId());
+            userModule.setAssignedAt(now);
+            userModuleRepo.save(userModule);
+        }
+        for (DepartmentEntity department : assignments.departments()) {
+            UserDepartmentEntity userDepartment = new UserDepartmentEntity();
+            userDepartment.setUserId(userId);
+            userDepartment.setDepartmentId(department.getId());
+            userDepartment.setAssignedAt(now);
+            userDepartmentRepo.save(userDepartment);
+        }
+    }
+
+    private void replaceAssignments(UUID userId, OffsetDateTime now, ResolvedAssignments assignments) {
+        userRoleRepo.deleteByUserId(userId);
+        userModuleRepo.deleteByUserId(userId);
+        userDepartmentRepo.deleteByUserId(userId);
+        saveAssignments(userId, now, assignments);
+    }
+
+    private void ensureUniqueUsername(String username, UUID excludedUserId) {
+        userRepo.findByUsername(username).ifPresent(existing -> {
+            if (excludedUserId == null || !existing.getId().equals(excludedUserId)) {
+                throw new ApiException(
+                        ErrorCode.VALIDATION_ERROR,
+                        HttpStatus.CONFLICT,
+                        "Username already exists.",
+                        Map.of("field", "username")
+                );
+            }
+        });
+    }
+
+    private void ensureUniqueEmail(String email, UUID excludedUserId) {
+        if (email == null) {
+            return;
+        }
+        userRepo.findByEmail(email).ifPresent(existing -> {
+            if (excludedUserId == null || !existing.getId().equals(excludedUserId)) {
+                throw new ApiException(
+                        ErrorCode.VALIDATION_ERROR,
+                        HttpStatus.CONFLICT,
+                        "Email already exists.",
+                        Map.of("field", "email")
+                );
+            }
+        });
+    }
+
+    private void validateSelfUpdateSafety(
+            UUID actorUserId,
+            UUID targetUserId,
+            UserEntity.UserStatus newStatus,
+            List<String> roleCodes
+    ) {
+        if (!actorUserId.equals(targetUserId)) {
+            return;
+        }
+        if (newStatus != UserEntity.UserStatus.ACTIVE) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "You cannot lock or disable your own account.",
+                    Map.of("status", newStatus.name())
+            );
+        }
+        if (!roleCodes.contains("ADMIN")) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "You cannot remove ADMIN role from your own account.",
+                    Map.of("roles", roleCodes)
+            );
+        }
+    }
+
+    private UserEntity requiredUser(UUID userId) {
+        return userRepo.findById(userId).orElseThrow(() -> new ApiException(
+                ErrorCode.VALIDATION_ERROR,
+                HttpStatus.NOT_FOUND,
+                "User not found.",
+                Map.of("userId", userId.toString())
+        ));
+    }
+
+    private static UserEntity.UserStatus normalizeStatus(String rawStatus) {
+        String value = rawStatus == null ? "" : rawStatus.trim().toUpperCase();
+        try {
+            return UserEntity.UserStatus.valueOf(value);
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "Unknown user status.",
+                    Map.of("status", value, "allowed", List.of("ACTIVE", "LOCKED", "DISABLED"))
+            );
+        }
+    }
+
+    private static String normalizeUsername(String rawUsername) {
+        String normalized = rawUsername == null ? "" : rawUsername.trim();
+        if (normalized.isBlank()) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "Username is required.",
+                    Map.of("field", "username")
+            );
+        }
+        return normalized;
+    }
+
+    private static String normalizeEmail(String rawEmail) {
+        if (rawEmail == null) {
+            return null;
+        }
+        String normalized = rawEmail.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private static Set<String> toNormalizedSet(List<String> values, boolean upper) {
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        if (values == null) {
+            return normalized;
+        }
+        for (String value : values) {
+            if (value == null) {
+                continue;
+            }
+            String cleaned = value.trim();
+            if (cleaned.isEmpty()) {
+                continue;
+            }
+            normalized.add(upper ? cleaned.toUpperCase() : cleaned.toLowerCase());
+        }
+        return normalized;
+    }
+
+    private static AdminUserResponse toResponse(UserEntity user, UserAuthorizationContext context) {
+        return new AdminUserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getStatus().name(),
+                context.roles(),
+                context.modules(),
+                context.departments(),
+                context.permissions()
         );
     }
 
@@ -344,5 +592,15 @@ public class AdminUsersUseCase {
             return "";
         }
         return s.replace("\"", "'");
+    }
+
+    private record ResolvedAssignments(
+            List<String> roleCodes,
+            List<String> moduleCodes,
+            List<String> departmentCodes,
+            List<RoleEntity> roles,
+            List<ModuleEntity> modules,
+            List<DepartmentEntity> departments
+    ) {
     }
 }
