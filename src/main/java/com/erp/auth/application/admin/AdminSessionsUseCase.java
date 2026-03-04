@@ -66,9 +66,29 @@ public class AdminSessionsUseCase {
             return;
         }
 
-        int updated = sessionRepo.revokeById(sessionId, now);
+        int updated = sessionRepo.revokeByUserIdAndDeviceId(
+                session.getUser().getId(),
+                session.getDeviceId(),
+                now
+        );
         auditService.record("ADMIN_SESSION_REVOKE", actor, session.getUser(), session,
                 "{\"sessionId\":\"" + sessionId + "\",\"revoked\":" + (updated > 0)
+                        + ",\"revokedCount\":" + updated
+                        + ",\"deviceId\":\"" + safe(session.getDeviceId()) + "\""
+                        + ",\"ip\":\"" + safe(ip) + "\""
+                        + ",\"userAgent\":\"" + safe(userAgent) + "\"}");
+    }
+
+    @Transactional
+    public void revokeAllExcept(UUID actorUserId, UUID keepSessionId, String ip, String userAgent) {
+        OffsetDateTime now = OffsetDateTime.now();
+        UserEntity actor = userRepo.findById(actorUserId).orElse(null);
+
+        int updated = sessionRepo.revokeAllExceptSessionId(keepSessionId, now);
+
+        auditService.record("ADMIN_SESSION_REVOKE_ALL", actor, null, null,
+                "{\"keepSessionId\":\"" + keepSessionId + "\""
+                        + ",\"revokedCount\":" + updated
                         + ",\"ip\":\"" + safe(ip) + "\""
                         + ",\"userAgent\":\"" + safe(userAgent) + "\"}");
     }

@@ -8,6 +8,8 @@
 - `Admin/GetSeats`
 - `Admin/UpdateSeats`
 - `Admin/GetActiveSessions`
+- `Admin/GetUserById`
+- `Admin/UpdateUserById`
 
 ## Usage
 1. Open Bruno and import folder: `bruno/erp-auth-service`.

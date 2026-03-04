@@ -1,0 +1,31 @@
+meta {
+  name: Admin Get User By Id
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/admin/users/{{targetUserId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  X-Request-Id: {{requestId}}
+  User-Agent: Bruno
+}
+
+script:pre-request {
+  const rid = `bru-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  bru.setVar("requestId", rid);
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

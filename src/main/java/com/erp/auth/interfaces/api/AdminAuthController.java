@@ -11,11 +11,14 @@ import com.erp.auth.interfaces.api.dto.AdminCreateModuleRequest;
 import com.erp.auth.interfaces.api.dto.AdminCreatePermissionRequest;
 import com.erp.auth.interfaces.api.dto.AdminCreateUserRequest;
 import com.erp.auth.interfaces.api.dto.AdminResetPasswordRequest;
+import com.erp.auth.interfaces.api.dto.AdminUpdateUserRequest;
 import com.erp.auth.interfaces.api.dto.AdminUserAccessResponse;
 import com.erp.auth.interfaces.api.dto.AdminUserResponse;
 import com.erp.auth.interfaces.api.dto.CodeAssignmentRequest;
 import com.erp.auth.interfaces.api.dto.SeatsResponse;
 import com.erp.auth.interfaces.api.dto.UpdateSeatsRequest;
+import com.erp.auth.interfaces.api.errors.ApiException;
+import com.erp.auth.interfaces.api.errors.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -80,6 +83,30 @@ public class AdminAuthController {
         adminSessionsUseCase.revoke(actorUserId(jwt), sessionId, http.getRemoteAddr(), http.getHeader("User-Agent"));
     }
 
+    @DeleteMapping("/sessions/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeSessionDelete(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID sessionId,
+            HttpServletRequest http
+    ) {
+        adminSessionsUseCase.revoke(actorUserId(jwt), sessionId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
+    @DeleteMapping("/sessions")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeAllSessionsExceptCurrent(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest http
+    ) {
+        adminSessionsUseCase.revokeAllExcept(
+                actorUserId(jwt),
+                actorSessionId(jwt),
+                http.getRemoteAddr(),
+                http.getHeader("User-Agent")
+        );
+    }
+
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
     public AdminUserResponse createUser(
@@ -88,6 +115,31 @@ public class AdminAuthController {
             HttpServletRequest http
     ) {
         return adminUsersUseCase.createUser(actorUserId(jwt), request, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
+    @GetMapping("/users/{id}")
+    public AdminUserResponse getUser(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID userId,
+            HttpServletRequest http
+    ) {
+        return adminUsersUseCase.getUser(actorUserId(jwt), userId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
+    @PutMapping("/users/{id}")
+    public AdminUserResponse updateUser(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID userId,
+            @Valid @RequestBody AdminUpdateUserRequest request,
+            HttpServletRequest http
+    ) {
+        return adminUsersUseCase.updateUser(
+                actorUserId(jwt),
+                userId,
+                request,
+                http.getRemoteAddr(),
+                http.getHeader("User-Agent")
+        );
     }
 
     @PostMapping("/users/{id}/lock")
@@ -214,5 +266,17 @@ public class AdminAuthController {
 
     private static UUID actorUserId(Jwt jwt) {
         return UUID.fromString(jwt.getSubject());
+    }
+
+    private static UUID actorSessionId(Jwt jwt) {
+        String sid = jwt.getClaimAsString("sid");
+        if (sid == null || sid.isBlank()) {
+            throw new ApiException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Invalid access token.");
+        }
+        try {
+            return UUID.fromString(sid);
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Invalid access token.");
+        }
     }
 }
