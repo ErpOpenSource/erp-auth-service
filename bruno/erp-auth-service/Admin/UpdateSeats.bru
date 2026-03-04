@@ -1,0 +1,39 @@
+meta {
+  name: Admin Update Seats
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/admin/licenses/seats
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+  X-Request-Id: {{requestId}}
+  User-Agent: Bruno
+}
+
+body:json {
+  {
+    "maxSeats": {{maxSeats}},
+    "enforceMode": "{{enforceMode}}"
+  }
+}
+
+script:pre-request {
+  const rid = `bru-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  bru.setVar("requestId", rid);
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

@@ -1,0 +1,38 @@
+meta {
+  name: Logout
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/logout
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+  X-Request-Id: {{requestId}}
+  User-Agent: Bruno
+}
+
+body:json {
+  {
+    "sessionId": "{{sessionId}}"
+  }
+}
+
+script:pre-request {
+  const rid = `bru-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  bru.setVar("requestId", rid);
+}
+
+tests {
+  test("status is 204", function() {
+    expect(res.getStatus()).to.equal(204);
+  });
+}

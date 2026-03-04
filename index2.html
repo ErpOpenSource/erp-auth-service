@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>ERP Auth Service · Ciclo de Desarrollo Enterprise</title>
+<meta name="viewport" content="width=1800">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#040c18;
+  --bg2:#071220;
+  --grid:rgba(96,165,250,.055);
+  --border:rgba(148,163,184,.12);
+  --border2:rgba(148,163,184,.07);
+  --text:#c8d8ec;
+  --muted:#3d5a7a;
+  --dim:#1a2d42;
+
+  --c1:#0891b2;  /* product   - cyan */
+  --c2:#2563eb;  /* domain    - blue */
+  --c3:#d97706;  /* build     - amber */
+  --c4:#059669;  /* quality   - green */
+  --c5:#dc2626;  /* security  - red */
+  --c6:#7c3aed;  /* obs       - purple */
+  --c7:#ca8a04;  /* cicd      - gold */
+  --c8:#0f766e;  /* gov       - teal */
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-family:'Outfit',system-ui,sans-serif;font-size:12px;background:var(--bg);color:var(--text)}
+body{
+  width:1800px;
+  min-height:1100px;
+  background:var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+    radial-gradient(ellipse 1200px 500px at 50% 0,rgba(37,99,235,.07),transparent),
+    radial-gradient(ellipse 800px 400px at 100% 100%,rgba(124,58,237,.06),transparent),
+    radial-gradient(ellipse 600px 300px at 0 80%,rgba(8,145,178,.05),transparent);
+  background-size:32px 32px,32px 32px,100%,100%,100%;
+  overflow-x:hidden;
+}
+
+/* ── HEADER ── */
+#hdr{
+  width:100%;height:82px;
+  border-bottom:1px solid var(--border);
+  background:rgba(4,12,24,.92);
+  backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+  position:relative;
+}
+#hdr::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(37,99,235,.6),rgba(8,145,178,.6),transparent);
+}
+.htitle{
+  font-size:19px;font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(120deg,#e2eaf8 0%,#60a5fa 50%,#67e8f9 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hsub{font-size:10.5px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace;letter-spacing:.3px}
+.hbadge{
+  display:flex;align-items:center;gap:18px;
+}
+.htag{
+  font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);border:1px solid var(--border);
+  border-radius:4px;padding:3px 10px;
+}
+
+/* ── MAIN GRID ── */
+#main{
+  padding:18px 18px 0;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  grid-template-rows:repeat(2,auto);
+  gap:14px;
+  position:relative;
+}
+
+/* ── CARDS ── */
+.block{
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:rgba(7,18,32,.8);
+  position:relative;
+  overflow:hidden;
+  opacity:0;
+  transform:translateY(14px);
+  animation:fadeUp .55s cubic-bezier(.4,0,.2,1) forwards;
+  transition:border-color .3s,box-shadow .3s;
+}
+.block:hover{
+  border-color:rgba(148,163,184,.25);
+  box-shadow:0 8px 40px rgba(0,0,0,.4);
+}
+.block::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  border-radius:10px 10px 0 0;
+}
+.b1::before{background:linear-gradient(90deg,var(--c1),transparent)}
+.b2::before{background:linear-gradient(90deg,var(--c2),transparent)}
+.b3::before{background:linear-gradient(90deg,var(--c3),transparent)}
+.b4::before{background:linear-gradient(90deg,var(--c4),transparent)}
+.b5::before{background:linear-gradient(90deg,var(--c5),transparent)}
+.b6::before{background:linear-gradient(90deg,var(--c6),transparent)}
+.b7::before{background:linear-gradient(90deg,var(--c7),transparent)}
+.b8::before{background:linear-gradient(90deg,var(--c8),transparent)}
+
+/* glow accent per block */
+.b1{--ac:var(--c1)}.b2{--ac:var(--c2)}.b3{--ac:var(--c3)}.b4{--ac:var(--c4)}
+.b5{--ac:var(--c5)}.b6{--ac:var(--c6)}.b7{--ac:var(--c7)}.b8{--ac:var(--c8)}
+.block::after{
+  content:'';position:absolute;top:2px;left:0;right:0;bottom:0;
+  background:linear-gradient(180deg,rgba(0,0,0,0) 60%,rgba(0,0,0,.12) 100%);
+  pointer-events:none;
+}
+
+@keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+.block:nth-child(1){animation-delay:.05s}
+.block:nth-child(2){animation-delay:.1s}
+.block:nth-child(3){animation-delay:.15s}
+.block:nth-child(4){animation-delay:.2s}
+.block:nth-child(5){animation-delay:.25s}
+.block:nth-child(6){animation-delay:.3s}
+.block:nth-child(7){animation-delay:.35s}
+.block:nth-child(8){animation-delay:.4s}
+
+/* ── BLOCK HEADER ── */
+.bh{
+  display:flex;align-items:center;gap:9px;
+  padding:11px 14px 9px;
+  border-bottom:1px solid var(--border2);
+}
+.bnum{
+  width:20px;height:20px;border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;background:rgba(255,255,255,.06);
+  border:1px solid var(--border);color:rgba(255,255,255,.4);
+}
+.bico{
+  width:26px;height:26px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.btitle{font-size:12.5px;font-weight:800;letter-spacing:-.2px;flex:1}
+.b1 .btitle{color:#22d3ee}.b2 .btitle{color:#60a5fa}.b3 .btitle{color:#fbbf24}
+.b4 .btitle{color:#34d399}.b5 .btitle{color:#f87171}.b6 .btitle{color:#a78bfa}
+.b7 .btitle{color:#fde68a}.b8 .btitle{color:#2dd4bf}
+
+/* ── BLOCK BODY ── */
+.bb{padding:10px 14px 12px}
+
+.sect{margin-bottom:8px}
+.slabel{
+  font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:5px;
+}
+.slabel::after{content:'';flex:1;height:1px;background:var(--border2)}
+
+/* pills / tags */
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px}
+.tag{
+  font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);
+  font-family:'JetBrains Mono',monospace;color:rgba(200,216,236,.75);
+  white-space:nowrap;
+}
+.tag.hi{background:rgba(255,255,255,.08);color:rgba(200,216,236,.95)}
+
+/* item list */
+.items{list-style:none}
+.items li{
+  font-size:11px;line-height:1.65;color:rgba(200,216,236,.7);
+  padding:1.5px 0;padding-left:12px;position:relative;
+}
+.items li::before{content:'→';position:absolute;left:0;color:var(--ac);font-size:9px;top:3px}
+.items li b{color:rgba(200,216,236,.95);font-weight:600}
+.items li code{
+  font-family:'JetBrains Mono',monospace;font-size:10px;
+  background:rgba(255,255,255,.06);border-radius:3px;padding:0 4px;
+  color:rgba(200,216,236,.9);
+}
+
+/* db tables grid */
+.dbtables{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:3px;
+  margin-top:4px;
+}
+.dbt{
+  font-family:'JetBrains Mono',monospace;font-size:9.5px;
+  padding:3px 6px;border-radius:4px;text-align:center;
+  background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.16);
+  color:rgba(251,191,36,.8);white-space:nowrap;
+}
+
+/* migration list */
+.migs{display:flex;flex-direction:column;gap:3px;margin-top:4px}
+.mig{
+  display:flex;align-items:center;gap:7px;
+  font-family:'JetBrains Mono',monospace;font-size:10px;
+  padding:3px 8px;border-radius:5px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border2);
+}
+.mignum{
+  width:28px;text-align:center;font-size:9px;font-weight:700;
+  color:rgba(251,191,36,.8);flex-shrink:0;
+}
+.migdesc{color:rgba(200,216,236,.65);font-size:10px}
+
+/* quality gate items */
+.qg{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px}
+.qgitem{
+  border-radius:6px;padding:6px 8px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border2);
+}
+.qgname{font-size:10.5px;font-weight:700;margin-bottom:2px}
+.b4 .qgname{color:#34d399}
+.qgdesc{font-size:10px;color:var(--muted);line-height:1.5}
+
+/* sec items */
+.secrow{
+  display:flex;align-items:flex-start;gap:7px;
+  padding:4px 0;border-bottom:1px solid var(--border2);
+}
+.secrow:last-child{border-bottom:none}
+.seckw{
+  font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:600;
+  color:#f87171;flex-shrink:0;width:88px;padding-top:1px;
+}
+.secval{font-size:10.5px;color:rgba(200,216,236,.68);line-height:1.5}
+
+/* obs items */
+.obs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px}
+.obsitem{
+  border-radius:6px;padding:6px 8px;
+  background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);
+}
+.obsname{font-size:10.5px;font-weight:700;color:#c4b5fd;margin-bottom:2px}
+.obsdesc{font-size:10px;color:var(--muted);line-height:1.5}
+
+/* pipeline */
+.pipe{
+  display:flex;align-items:center;gap:0;
+  margin:6px 0;overflow:hidden;border-radius:6px;
+  border:1px solid var(--border2);
+}
+.pstep{
+  flex:1;padding:5px 4px;text-align:center;
+  font-size:9.5px;font-weight:700;font-family:'JetBrains Mono',monospace;
+  border-right:1px solid var(--border2);position:relative;
+  background:rgba(255,255,255,.025);
+}
+.pstep:last-child{border-right:none}
+.pstep:nth-child(1){color:#fde68a}.pstep:nth-child(2){color:#6ee7b7}
+.pstep:nth-child(3){color:#93c5fd}.pstep:nth-child(4){color:#c4b5fd}
+.pstep:nth-child(5){color:#f9a8d4}
+
+/* governance */
+.govrow{
+  display:flex;align-items:flex-start;gap:8px;
+  padding:4px 0;border-bottom:1px solid var(--border2);
+}
+.govrow:last-child{border-bottom:none}
+.govicon{
+  width:20px;height:20px;border-radius:4px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.18);
+  margin-top:1px;
+}
+.govcontent{}
+.govtitle{font-size:11px;font-weight:700;color:#2dd4bf;margin-bottom:1px}
+.govdesc{font-size:10.5px;color:var(--muted);line-height:1.5}
+
+/* ── CONNECTOR ARROWS ── */
+#connectors{
+  position:absolute;top:0;left:0;
+  width:100%;height:100%;
+  pointer-events:none;
+  z-index:10;
+}
+
+/* ── METRICS STRIP ── */
+#metrics{
+  margin:14px 18px 18px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:rgba(7,18,32,.85);
+  padding:16px 22px;
+  position:relative;
+  overflow:hidden;
+}
+#metrics::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--c1),var(--c2),var(--c4),var(--c6),var(--c8));
+}
+.mtitle{
+  font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px;
+}
+.mtitle::after{content:'';flex:1;height:1px;background:var(--border2)}
+.mbars{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.mbar{display:flex;flex-direction:column;gap:5px}
+.mbn{font-size:11.5px;font-weight:700;letter-spacing:-.1px}
+.mbtrack{height:6px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;position:relative}
+.mbfill{height:100%;border-radius:999px;width:0;transition:width 1.4s cubic-bezier(.4,0,.2,1)}
+.mbval{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:600;color:rgba(200,216,236,.5);margin-top:2px}
+.mbdesc{font-size:10px;color:var(--muted);line-height:1.4;margin-top:2px}
+
+/* LAYER PILL */
+.layers{display:flex;gap:3px;flex-wrap:wrap;margin:4px 0}
+.layer{
+  font-size:9.5px;font-weight:600;padding:2px 8px;border-radius:3px;
+  font-family:'JetBrains Mono',monospace;
+}
+.layer.interfaces{background:rgba(37,99,235,.15);border:1px solid rgba(37,99,235,.3);color:#93c5fd}
+.layer.application{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.28);color:#6ee7b7}
+.layer.domain{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.28);color:#fcd34d}
+.layer.infra{background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.22);color:#94a3b8}
+
+/* error contract */
+.errcontract{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:3px;margin-top:4px;
+}
+.ecitem{
+  font-family:'JetBrains Mono',monospace;font-size:9.5px;
+  padding:3px 7px;border-radius:4px;
+  background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.14);
+  color:rgba(252,129,129,.8);
+}
+
+/* pulse dot */
+.pulse{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+  animation:pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.6)}}
+
+/* connectors arrows path animation */
+.arr-path{stroke-dasharray:600;stroke-dashoffset:600;animation:drawLine 1s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes drawLine{to{stroke-dashoffset:0}}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header id="hdr">
+  <div>
+    <div class="htitle">ERP Auth Service · Ciclo de Desarrollo Enterprise</div>
+    <div class="hsub">Product → Architecture → Build → Quality → Security → Observability → CI/CD → Governance</div>
+  </div>
+  <div class="hbadge">
+    <div class="htag">Spring Boot</div>
+    <div class="htag">PostgreSQL</div>
+    <div class="htag">JWT HS256</div>
+    <div class="htag">OpenTelemetry</div>
+    <div class="htag">Docker</div>
+    <div class="pulse" style="background:#22d3ee;box-shadow:0 0 8px #22d3ee"></div>
+  </div>
+</header>
+
+<!-- ── MAIN GRID ── -->
+<main id="main">
+
+  <!-- 1 PRODUCT & BACKLOG -->
+  <div class="block b1" id="product-backlog">
+    <div class="bh">
+      <div class="bnum">1</div>
+      <div class="bico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="9" y1="9" x2="21" y2="9"/></svg></div>
+      <div class="btitle">Product & Backlog</div>
+    </div>
+    <div class="bb">
+      <div class="sect">
+        <div class="slabel">Historias de usuario</div>
+        <div class="tags">
+          <span class="tag hi">POST /login</span>
+          <span class="tag hi">POST /refresh</span>
+          <span class="tag hi">POST /logout</span>
+          <span class="tag hi">POST /logout/all</span>
+          <span class="tag">GET /sessions</span>
+          <span class="tag">DELETE /sessions/:sid</span>
+          <span class="tag">License seats</span>
+          <span class="tag">RBAC admin API</span>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="slabel">DoD — Criterios por endpoint</div>
+        <ul class="items">
+          <li>Tests unitarios + integración <b>verdes</b></li>
+          <li>Contrato de error <b>estándar</b> documentado</li>
+          <li><code>requestId</code> + <code>traceId</code> en toda respuesta de error</li>
+          <li>Revisión de seguridad (OWASP) <b>aprobada</b></li>
+          <li>Migraciones versionadas y revisadas</li>
+        </ul>
+      </div>
+      <div class="sect">
+        <div class="slabel">DoD — Seguridad</div>
+        <ul class="items">
+          <li>Zero secrets en código fuente / logs</li>
+          <li>Refresh rotation + <b>reuse detection</b> activo</li>
+          <li>Audit trail completo en <code>audit_event</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 DOMAIN & ARCHITECTURE -->
+  <div class="block b2" id="domain-architecture">
+    <div class="bh">
+      <div class="bnum">2</div>
+      <div class="bico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
+      <div class="btitle">Domain & Architecture</div>
+    </div>
+    <div class="bb">
+      <div class="sect">
+        <div class="slabel">Capas hexagonales</div>
+        <div class="layers">
+          <span class="layer interfaces">interfaces/api</span>
+          <span class="layer application">application</span>
+          <span class="layer domain">domain</span>
+          <span class="layer infra">infrastructure</span>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="slabel">Base de datos — Tablas</div>
+        <div class="dbtables">
+          <div class="dbt">users</div>
+          <div class="dbt">sessions</div>
+          <div class="dbt">roles</div>
+          <div class="dbt">permissions</div>
+          <div class="dbt">user_roles</div>
+          <div class="dbt">modules</div>
+          <div class="dbt">departments</div>
+          <div class="dbt">user_modules</div>
+          <div class="dbt">audit_event</div>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="slabel">Contrato de error estándar</div>
+        <div class="errcontract">
+          <div class="ecitem">code: ERROR_CODE</div>
+          <div class="ecitem">message: string</div>
+          <div class="ecitem">requestId: uuid</div>
+          <div class="ecitem">traceId: hex</div>
+          <div class="ecitem">timestamp: ISO</div>
+          <div class="ecitem">status: HTTP</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 BUILD & DATA EVOLUTION -->
+  <div class="block b3" id="build-data-evolution">
+    <div class="bh">
+      <div class="bnum">3</div>
+      <div class="bico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
+      <div class="btitle">Build & Data Evolution</div>
+    </div>
+    <div class="bb">
+      <div class="sect">
+        <div class="slabel">Migraciones Flyway/Liquibase</div>
+        <div class="migs">
+          <div class="mig"><span class="mignum">V001</span><span class="migdesc">users + roles + permissions</span></div>
+          <div class="mig"><span class="mignum">V002</span><span class="migdesc">sessions + license_seats</span></div>
+          <div class="mig"><span class="mignum">V003</span><span class="migdesc">modules + departments + mappings</span></div>
+          <div class="mig"><span class="mignum">V004</span><span class="migdesc">audit_event + índices</span></div>
+          <div class="mig"><span class="mignum">V005</span><span class="migdesc">refresh rotation cols + indexes</span></div>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="slabel">Seed & configuración</div>
+        <ul class="items">
+          <li>Seed <b>dev</b>: roles, permisos, usuario admin</li>
+          <li>Perfiles: <code>docker</code> / <code>local</code> / <code>test</code></li>
+          <li>Secrets via env vars / Vault</li>
+          <li>Config externalizada — 12-factor</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 QUALITY GATES -->
+  <div class="block b4" id="quality-gates">
+    <div class="bh">
+      <div class="bnum">4</div>
+      <div class="bico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <div class="btitle">Quality Gates</div>
+    </div>
+    <div class="bb">
+      <div class="qg">
+        <div class="qgitem">
+          <div class="qgname">Unit Tests</div>
+          <div class="qgdesc">Use cases aislados. Mocks de repos. Lógica de negocio 100%.</div>
+        </div>
+        <div class="qgitem">
+          <div class="qgname">Integration Tests</div>
+          <div class="qgdesc">PostgreSQL real (Testcontainers). Ciclo completo login→refresh→logout.</div>
+        </div>
+        <div class="qgitem">
+          <div class="qgname">Security Tests</div>
+          <div class="qgdesc">401 / 403 / RBAC deny. JWT tamperado. Token expirado.</div>
+        </div>
+        <div class="qgitem">
+          <div class="qgname">Concurrency</div>
+          <div class="qgdesc">Seat enforcement bajo concurrencia. SELECT FOR UPDATE. Race conditions.</div>
+        </div>
+        <div class="qgitem" style="grid-column:1/-1">
+          <div class="qgname">Contract Tests · Error Model</div>
+          <div class="qgdesc">Validar shape exacto: <code style="font-family:'JetBrains Mono',monospace;font-size:9.5px">{ code, message, requestId, traceId, timestamp, status }</code> en todos los errores.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 SECURITY & COMPLIANCE -->
+  <div class="block b5" id="security-compliance">
+    <div class="bh">
+      <div class="bnum">5</div>
+      <div class="bico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <div class="btitle">Security & Compliance</div>
+    </div>
+    <div class="bb">
+      <div class="secrow">
+        <div class="seckw">JWT HS256</div>
+        <div class="secval">accessToken 15 min · claims: sub, sid, roles, modules, permissions, iat, exp</div>
+      </div>
+      <div class="secrow">
+        <div class="seckw">Refresh rotation</div>
+        <div class="secval"><code>prev_rt_hash</code> ← actual → nuevo. Una única ventana de uso válida.</div>
+      </div>
+      <div class="secrow">
+        <div class="seckw">Reuse detection</div>
+        <div class="secval">Match con <code>prev_rt_hash</code> → revocar sesión + audit + 401.</div>
+      </div>
+      <div class="secrow">
+        <div class="seckw">Revocación</div>
+        <div class="secval"><code>revoked_at</code> por <code>sid</code> o por <code>sub</code> (logout/all).</div>
+      </div>
+      <div class="secrow">
+        <div class="seckw">Auditoría</div>
+        <div class="secval">actor_user_id · target · request_id · trace_id · metadata · created_at</div>
+      </div>
+      <div class="secrow">
+        <div class="seckw">Hardening</div>
+        <div class="secval">CORS strict · rate-limit · BCrypt cost ≥ 12 · no secrets en logs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 OBSERVABILITY -->
+  <div class="block b6" id="observability">
+    <div class="bh">
+      <div class="bnum">6</div>
+      <div class="bico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="2"/><circle cx="12" cy="7" r="2"/><circle cx="20" cy="15" r="2"/><path d="M8 17L10.5 9"/><path d="M13.5 9L18 13.5"/></svg></div>
+      <div class="btitle">Observability</div>
+    </div>
+    <div class="bb">
+      <div class="obs">
+        <div class="obsitem">
+          <div class="obsname">Logs JSON</div>
+          <div class="obsdesc">Structured logging. Nivel configurable. Sanitización de datos sensibles.</div>
+        </div>
+        <div class="obsitem">
+          <div class="obsname">RequestId / MDC</div>
+          <div class="obsdesc"><code style="font-family:'JetBrains Mono',monospace;font-size:9.5px">X-Request-Id</code> propagado en MDC. Visible en todos los logs del request.</div>
+        </div>
+        <div class="obsitem">
+          <div class="obsname">OpenTelemetry</div>
+          <div class="obsdesc">W3C traceparent. Spans por endpoint. Export OTLP → Jaeger / Tempo.</div>
+        </div>
+        <div class="obsitem">
+          <div class="obsname">Health & Metrics</div>
+          <div class="obsdesc">Actuator /health · /metrics. Prometheus scrape. Grafana dashboard.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 CI/CD & OPERATIONS -->
+  <div class="block b7" id="cicd-operations">
+    <div class="bh">
+      <div class="bnum">7</div>
+      <div class="bico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fde68a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div>
+      <div class="btitle">CI/CD & Operations</div>
+    </div>
+    <div class="bb">
+      <div class="sect">
+        <div class="slabel">Pipeline</div>
+        <div class="pipe">
+          <div class="pstep">compile</div>
+          <div class="pstep">test</div>
+          <div class="pstep">package</div>
+          <div class="pstep">image</div>
+          <div class="pstep">deploy</div>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="slabel">Infraestructura</div>
+        <ul class="items">
+          <li><b>Docker Compose</b>: app + postgres + redis + jaeger</li>
+          <li>Perfiles: <code>dev</code> / <code>staging</code> / <code>prod</code></li>
+          <li>Health checks en compose + liveness probe</li>
+          <li>Graceful shutdown + drain de conexiones</li>
+        </ul>
+      </div>
+      <div class="sect">
+        <div class="slabel">Runbook</div>
+        <ul class="items">
+          <li>Forzar logout de usuario comprometido</li>
+          <li>Revocar todas las sesiones via API</li>
+          <li>Consultar <code>audit_event</code> por <code>traceId</code></li>
+          <li>Rollback de migración de datos</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8 GOVERNANCE -->
+  <div class="block b8" id="governance">
+    <div class="bh">
+      <div class="bnum">8</div>
+      <div class="bico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><line x1="16" y1="3" x2="16" y2="8"/><line x1="19" y1="5.5" x2="13" y2="5.5"/></svg></div>
+      <div class="btitle">Governance</div>
+    </div>
+    <div class="bb">
+      <div class="govrow">
+        <div class="govicon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="govcontent">
+          <div class="govtitle">RBAC administrable por API</div>
+          <div class="govdesc">Roles, permisos y asignaciones gestionables sin deploys. Cambios trazados.</div>
+        </div>
+      </div>
+      <div class="govrow">
+        <div class="govicon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/></svg></div>
+        <div class="govcontent">
+          <div class="govtitle">Permisos por módulo y departamento</div>
+          <div class="govdesc">Granularidad a nivel de feature dentro de módulo. user_modules + user_departments.</div>
+        </div>
+      </div>
+      <div class="govrow">
+        <div class="govicon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
+        <div class="govcontent">
+          <div class="govtitle">Auditoría y trazabilidad total</div>
+          <div class="govdesc">Cada cambio de permisos genera <code style="font-family:'JetBrains Mono',monospace;font-size:9.5px">audit_event</code> con actor, traceId, metadata JSONB.</div>
+        </div>
+      </div>
+      <div class="govrow">
+        <div class="govicon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        <div class="govcontent">
+          <div class="govtitle">License seat management</div>
+          <div class="govdesc">Control de concurrencia <code style="font-family:'JetBrains Mono',monospace;font-size:9.5px">SELECT FOR UPDATE</code>. SEAT_LIMIT_REACHED (409).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── METRICS STRIP ── -->
+<section id="metrics">
+  <div class="mtitle">Métricas de madurez del servicio</div>
+  <div class="mbars">
+
+    <div class="mbar" id="m-seg">
+      <div class="mbn" style="color:#f87171">Seguridad</div>
+      <div class="mbtrack"><div class="mbfill" style="background:linear-gradient(90deg,#dc2626,#f87171)" data-val="92"></div></div>
+      <div class="mbval">92 / 100</div>
+      <div class="mbdesc">JWT+rotation, reuse detection, BCrypt, CORS, rate-limit, audit trail.</div>
+    </div>
+
+    <div class="mbar" id="m-rel">
+      <div class="mbn" style="color:#34d399">Confiabilidad</div>
+      <div class="mbtrack"><div class="mbfill" style="background:linear-gradient(90deg,#059669,#34d399)" data-val="88"></div></div>
+      <div class="mbval">88 / 100</div>
+      <div class="mbdesc">Testcontainers, concurrency tests, health checks, graceful shutdown.</div>
+    </div>
+
+    <div class="mbar" id="m-ops">
+      <div class="mbn" style="color:#a78bfa">Operabilidad</div>
+      <div class="mbtrack"><div class="mbfill" style="background:linear-gradient(90deg,#7c3aed,#a78bfa)" data-val="85"></div></div>
+      <div class="mbval">85 / 100</div>
+      <div class="mbdesc">Logs JSON, traceId/requestId, Prometheus, Grafana, runbook completo.</div>
+    </div>
+
+    <div class="mbar" id="m-esc">
+      <div class="mbn" style="color:#fbbf24">Escalabilidad</div>
+      <div class="mbtrack"><div class="mbfill" style="background:linear-gradient(90deg,#d97706,#fbbf24)" data-val="80"></div></div>
+      <div class="mbval">80 / 100</div>
+      <div class="mbdesc">Stateless JWT, Redis cache opcional, seat locking sin deadlock, pool DB.</div>
+    </div>
+
+    <div class="mbar" id="m-mnt">
+      <div class="mbn" style="color:#60a5fa">Mantenibilidad</div>
+      <div class="mbtrack"><div class="mbfill" style="background:linear-gradient(90deg,#2563eb,#60a5fa)" data-val="90"></div></div>
+      <div class="mbval">90 / 100</div>
+      <div class="mbdesc">Hex architecture, migraciones versionadas, config externalizada, DoD claro.</div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+// Animate metric bars on load
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.querySelectorAll('.mbfill').forEach(el => {
+      const val = el.dataset.val;
+      el.style.width = val + '%';
+    });
+  }, 600);
+});
+</script>
+</body>
+</html>

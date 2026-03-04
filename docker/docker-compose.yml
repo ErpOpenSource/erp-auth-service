@@ -6,21 +6,39 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     container_name: erp-auth-service
+    restart: unless-stopped
+    env_file:
+      - ../.env
+
     environment:
-    - SPRING_PROFILES_ACTIVE=docker
-    - SPRING_DATA_REDIS_HOST=cache
-    - SPRING_DATA_REDIS_PORT=6379
-    - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/erp_auth
-    - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-    - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-    - MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://otel-collector:4318
-    - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
-    - MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED=false
+      # Perfil
+      - SPRING_PROFILES_ACTIVE=docker
+
+      # Redis (opcional, pero lo tienes)
+      - SPRING_DATA_REDIS_HOST=cache
+      - SPRING_DATA_REDIS_PORT=6379
+
+      # Postgres (db es el hostname interno del servicio postgres en la red erp-platform)
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/erp_auth
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-change-this-super-secret-key-very-long-32-bytes-min}
+      - AUTH_JWT_ACCESS_TOKEN_EXPIRATION_MINUTES=${AUTH_JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:-15}
+      - AUTH_REFRESH_EXPIRATION_DAYS_DEFAULT=${AUTH_REFRESH_EXPIRATION_DAYS_DEFAULT:-7}
+      - AUTH_REFRESH_EXPIRATION_DAYS_REMEMBER_ME=${AUTH_REFRESH_EXPIRATION_DAYS_REMEMBER_ME:-30}
+      - AUTH_REFRESH_PEPPER=${AUTH_REFRESH_PEPPER:-change-me-pepper}
+
+      # Tracing OTLP -> OTel Collector (ya lo tienes en tu stack)
+      - MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://otel-collector:4318
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
+
+      # Desactivar export de métricas OTLP (si ya scrapeas Prometheus)
+      - MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED=false
+
     ports:
       - "8081:8081"
+
     networks:
       - erp-platform
-    restart: unless-stopped
+
     logging:
       driver: "json-file"
       options:

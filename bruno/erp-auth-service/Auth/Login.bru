@@ -1,0 +1,44 @@
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Request-Id: {{requestId}}
+  User-Agent: Bruno
+}
+
+body:json {
+  {
+    "username": "{{username}}",
+    "password": "{{password}}",
+    "deviceId": "{{deviceId}}",
+    "rememberMe": false
+  }
+}
+
+script:pre-request {
+  const rid = `bru-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  bru.setVar("requestId", rid);
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  const body = res.getBody();
+  const data = typeof body === "string" ? JSON.parse(body) : body;
+
+  bru.setVar("accessToken", data.accessToken);
+  bru.setVar("refreshToken", data.refreshToken);
+  bru.setVar("sessionId", data.sessionId);
+}

@@ -1,3 +1,16 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db:5432/erp_auth}
+    username: ${POSTGRES_USER:erp_admin}
+    password: ${POSTGRES_PASSWORD:admin1234}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
 management:
   tracing:
     sampling:
@@ -13,3 +26,13 @@ management:
     metrics:
       export:
         enabled: false
+
+auth:
+  jwt:
+    # minimo 32 bytes recomendado para HS256 en serio
+    secret: ${AUTH_JWT_SECRET:change-this-super-secret-key-very-long-32-bytes-min}
+    access-token-expiration-minutes: ${AUTH_JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:15}
+  refresh:
+    expiration-days-default: ${AUTH_REFRESH_EXPIRATION_DAYS_DEFAULT:7}
+    expiration-days-remember-me: ${AUTH_REFRESH_EXPIRATION_DAYS_REMEMBER_ME:30}
+    pepper: ${AUTH_REFRESH_PEPPER:change-me-pepper}
