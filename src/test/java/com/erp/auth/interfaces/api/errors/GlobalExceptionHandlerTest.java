@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -87,6 +89,16 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.details.fields.username").value("must not be blank"));
     }
 
+    @Test
+    void mapsNoResourceFoundTo404() throws Exception {
+        mockMvc.perform(get("/__test__/not-found").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(header().exists("X-Request-Id"))
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Resource not found."))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
+    }
+
     @RestController
     @RequestMapping("/__test__")
     static class ThrowingController {
@@ -119,6 +131,11 @@ class GlobalExceptionHandlerTest {
         @PostMapping("/validation")
         String validation(@Valid @RequestBody ValidationRequest request) {
             return request.username();
+        }
+
+        @GetMapping("/not-found")
+        String notFound() throws NoResourceFoundException {
+            throw new NoResourceFoundException(HttpMethod.GET, "/missing/resource");
         }
     }
 

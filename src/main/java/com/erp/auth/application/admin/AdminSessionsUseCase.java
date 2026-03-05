@@ -40,6 +40,8 @@ public class AdminSessionsUseCase {
                         s.getUser().getId(),
                         s.getUser().getUsername(),
                         s.getDeviceId(),
+                        s.getIp(),
+                        s.getUserAgent(),
                         s.getCreatedAt(),
                         s.getLastSeenAt(),
                         s.getExpiresAt()
@@ -69,6 +71,25 @@ public class AdminSessionsUseCase {
         int updated = sessionRepo.revokeById(sessionId, now);
         auditService.record("ADMIN_SESSION_REVOKE", actor, session.getUser(), session,
                 "{\"sessionId\":\"" + sessionId + "\",\"revoked\":" + (updated > 0)
+                        + ",\"ip\":\"" + safe(ip) + "\""
+                        + ",\"userAgent\":\"" + safe(userAgent) + "\"}");
+    }
+
+    @Transactional
+    public void revokeAllExcept(UUID actorUserId, UUID keepSessionId, String ip, String userAgent) {
+        OffsetDateTime now = OffsetDateTime.now();
+        UserEntity actor = userRepo.findById(actorUserId).orElse(null);
+
+        int revoked;
+        if (keepSessionId == null) {
+            revoked = sessionRepo.revokeAll(now);
+        } else {
+            revoked = sessionRepo.revokeAllExcept(keepSessionId, now);
+        }
+
+        auditService.record("ADMIN_SESSIONS_REVOKE_ALL", actor, null, null,
+                "{\"keepSessionId\":\"" + (keepSessionId == null ? "" : keepSessionId) + "\""
+                        + ",\"revokedCount\":" + revoked
                         + ",\"ip\":\"" + safe(ip) + "\""
                         + ",\"userAgent\":\"" + safe(userAgent) + "\"}");
     }

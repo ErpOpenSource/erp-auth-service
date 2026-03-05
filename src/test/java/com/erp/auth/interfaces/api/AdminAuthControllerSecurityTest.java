@@ -8,6 +8,8 @@ import com.erp.auth.infrastructure.security.JwtService;
 import com.erp.auth.infrastructure.security.SecurityConfig;
 import com.erp.auth.interfaces.api.errors.SecurityAccessDeniedHandler;
 import com.erp.auth.interfaces.api.errors.SecurityAuthenticationEntryPoint;
+import com.erp.auth.interfaces.api.dto.ActiveSessionItem;
+import com.erp.auth.interfaces.api.dto.ActiveSessionsResponse;
 import com.erp.auth.interfaces.api.dto.SeatsResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.OffsetDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -86,6 +89,36 @@ class AdminAuthControllerSecurityTest {
         mockMvc.perform(get("/admin/licenses/seats")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminSessionsLegacyEndpointAllowsAdminToken() throws Exception {
+        String adminToken = tokenWithRoles(List.of("ADMIN"));
+        UUID sessionId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        when(adminSessionsUseCase.listActive(any(), any(), any()))
+                .thenReturn(new ActiveSessionsResponse(List.of(
+                        new ActiveSessionItem(
+                                sessionId,
+                                userId,
+                                "admin",
+                                "device-1",
+                                "127.0.0.1",
+                                "JUnit",
+                                now.minusMinutes(5),
+                                now.minusMinutes(1),
+                                now.plusMinutes(10)
+                        )
+                )));
+
+        mockMvc.perform(get("/admin/sessions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(sessionId.toString()))
+                .andExpect(jsonPath("$[0].userId").value(userId.toString()))
+                .andExpect(jsonPath("$[0].username").value("admin"));
     }
 
     private static String tokenWithRoles(List<String> roles) {

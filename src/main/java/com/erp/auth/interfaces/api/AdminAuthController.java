@@ -10,11 +10,16 @@ import com.erp.auth.interfaces.api.dto.AdminCreateDepartmentRequest;
 import com.erp.auth.interfaces.api.dto.AdminCreateModuleRequest;
 import com.erp.auth.interfaces.api.dto.AdminCreatePermissionRequest;
 import com.erp.auth.interfaces.api.dto.AdminCreateUserRequest;
+import com.erp.auth.interfaces.api.dto.AdminDepartmentResponse;
 import com.erp.auth.interfaces.api.dto.AdminResetPasswordRequest;
 import com.erp.auth.interfaces.api.dto.AdminUserAccessResponse;
+import com.erp.auth.interfaces.api.dto.AdminUserListItem;
 import com.erp.auth.interfaces.api.dto.AdminUserResponse;
 import com.erp.auth.interfaces.api.dto.CodeAssignmentRequest;
+import com.erp.auth.interfaces.api.dto.LegacyAdminSessionResponse;
+import com.erp.auth.interfaces.api.dto.PatchUserStatusRequest;
 import com.erp.auth.interfaces.api.dto.SeatsResponse;
+import com.erp.auth.interfaces.api.dto.UpdateDepartmentRequest;
 import com.erp.auth.interfaces.api.dto.UpdateSeatsRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -23,6 +28,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -70,6 +76,27 @@ public class AdminAuthController {
         return adminSessionsUseCase.listActive(actorUserId(jwt), http.getRemoteAddr(), http.getHeader("User-Agent"));
     }
 
+    @GetMapping("/sessions")
+    public List<LegacyAdminSessionResponse> getActiveSessionsLegacy(@AuthenticationPrincipal Jwt jwt, HttpServletRequest http) {
+        UUID currentSessionId = sessionId(jwt);
+        return adminSessionsUseCase.listActive(actorUserId(jwt), http.getRemoteAddr(), http.getHeader("User-Agent"))
+                .items()
+                .stream()
+                .map(item -> new LegacyAdminSessionResponse(
+                        item.sessionId(),
+                        item.userId(),
+                        item.username(),
+                        item.deviceId(),
+                        item.ip(),
+                        item.userAgent(),
+                        item.createdAt(),
+                        item.lastSeenAt(),
+                        item.expiresAt(),
+                        currentSessionId != null && currentSessionId.equals(item.sessionId())
+                ))
+                .toList();
+    }
+
     @PostMapping("/sessions/{id}/revoke")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revokeSession(
@@ -78,6 +105,30 @@ public class AdminAuthController {
             HttpServletRequest http
     ) {
         adminSessionsUseCase.revoke(actorUserId(jwt), sessionId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
+    @DeleteMapping("/sessions/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeSessionLegacy(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID sessionId,
+            HttpServletRequest http
+    ) {
+        adminSessionsUseCase.revoke(actorUserId(jwt), sessionId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
+    @DeleteMapping("/sessions")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeAllOtherSessions(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest http
+    ) {
+        adminSessionsUseCase.revokeAllExcept(
+                actorUserId(jwt),
+                sessionId(jwt),
+                http.getRemoteAddr(),
+                http.getHeader("User-Agent")
+        );
     }
 
     @PostMapping("/users")
@@ -147,6 +198,58 @@ public class AdminAuthController {
         return adminAuthorizationUseCase.createModule(actorUserId(jwt), request, http.getRemoteAddr(), http.getHeader("User-Agent"));
     }
 
+    @GetMapping("/users")
+    public List<AdminUserListItem> listUsers(@AuthenticationPrincipal Jwt jwt) {
+        return adminUsersUseCase.listUsers();
+    }
+
+    @PatchMapping("/users/{id}/status")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void patchUserStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID userId,
+            @Valid @RequestBody PatchUserStatusRequest request,
+            HttpServletRequest http
+    ) {
+        switch (request.status().toUpperCase()) {
+            case "ACTIVE"    -> adminUsersUseCase.enableUser(actorUserId(jwt), userId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+            case "LOCKED",
+                 "SUSPENDED" -> adminUsersUseCase.lockUser(actorUserId(jwt), userId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+            case "DISABLED"  -> adminUsersUseCase.disableUser(actorUserId(jwt), userId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+            default          -> throw new com.erp.auth.interfaces.api.errors.ApiException(
+                    com.erp.auth.interfaces.api.errors.ErrorCode.VALIDATION_ERROR,
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Invalid status value.",
+                    java.util.Map.of("status", request.status())
+            );
+        }
+    }
+
+    @GetMapping("/departments")
+    public List<AdminDepartmentResponse> listDepartments(@AuthenticationPrincipal Jwt jwt) {
+        return adminAuthorizationUseCase.listDepartments();
+    }
+
+    @PutMapping("/departments/{id}")
+    public AdminDepartmentResponse updateDepartment(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID departmentId,
+            @Valid @RequestBody UpdateDepartmentRequest request,
+            HttpServletRequest http
+    ) {
+        return adminAuthorizationUseCase.updateDepartment(actorUserId(jwt), departmentId, request, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
+    @DeleteMapping("/departments/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDepartment(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID departmentId,
+            HttpServletRequest http
+    ) {
+        adminAuthorizationUseCase.deleteDepartment(actorUserId(jwt), departmentId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
     @PostMapping("/departments")
     @ResponseStatus(HttpStatus.CREATED)
     public AdminCodeNameResponse createDepartment(
@@ -203,6 +306,41 @@ public class AdminAuthController {
         );
     }
 
+    @GetMapping("/roles")
+    public List<AdminCodeNameResponse> listRoles(@AuthenticationPrincipal Jwt jwt) {
+        return adminAuthorizationUseCase.listRoles();
+    }
+
+    @GetMapping("/roles/{code}/permissions")
+    public List<String> getRolePermissions(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("code") String roleCode
+    ) {
+        return adminAuthorizationUseCase.getRolePermissions(roleCode);
+    }
+
+    @GetMapping("/permissions")
+    public List<AdminCodeNameResponse> listPermissions(@AuthenticationPrincipal Jwt jwt) {
+        return adminAuthorizationUseCase.listPermissions();
+    }
+
+    @GetMapping("/modules")
+    public List<AdminCodeNameResponse> listModules(@AuthenticationPrincipal Jwt jwt) {
+        return adminAuthorizationUseCase.listModuleCatalog();
+    }
+
+    @PutMapping("/users/{id}/roles")
+    public CodeAssignmentRequest assignUserRoles(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID userId,
+            @Valid @RequestBody CodeAssignmentRequest request,
+            HttpServletRequest http
+    ) {
+        return new CodeAssignmentRequest(
+                adminUsersUseCase.assignUserRoles(actorUserId(jwt), userId, request.codes(), http.getRemoteAddr(), http.getHeader("User-Agent"))
+        );
+    }
+
     @GetMapping("/users/{id}/access")
     public AdminUserAccessResponse getUserAccess(
             @AuthenticationPrincipal Jwt jwt,
@@ -214,5 +352,17 @@ public class AdminAuthController {
 
     private static UUID actorUserId(Jwt jwt) {
         return UUID.fromString(jwt.getSubject());
+    }
+
+    private static UUID sessionId(Jwt jwt) {
+        String sid = jwt.getClaimAsString("sid");
+        if (sid == null || sid.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(sid);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 }

@@ -23,7 +23,9 @@ import com.erp.auth.interfaces.api.dto.AdminCodeNameResponse;
 import com.erp.auth.interfaces.api.dto.AdminCreateDepartmentRequest;
 import com.erp.auth.interfaces.api.dto.AdminCreateModuleRequest;
 import com.erp.auth.interfaces.api.dto.AdminCreatePermissionRequest;
+import com.erp.auth.interfaces.api.dto.AdminDepartmentResponse;
 import com.erp.auth.interfaces.api.dto.AdminUserAccessResponse;
+import com.erp.auth.interfaces.api.dto.UpdateDepartmentRequest;
 import com.erp.auth.interfaces.api.errors.ApiException;
 import com.erp.auth.interfaces.api.errors.ErrorCode;
 import org.springframework.http.HttpStatus;
@@ -92,6 +94,78 @@ public class AdminAuthorizationUseCase {
         auditService.record("ADMIN_MODULE_CREATE", actor(actorUserId), null, null,
                 "{\"code\":\"" + safe(code) + "\",\"name\":\"" + safe(module.getName()) + "\",\"ip\":\"" + safe(ip) + "\",\"userAgent\":\"" + safe(userAgent) + "\"}");
         return new AdminCodeNameResponse(module.getCode(), module.getName());
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminCodeNameResponse> listRoles() {
+        return roleRepo.findAll(org.springframework.data.domain.Sort.by("code"))
+                .stream()
+                .map(r -> new AdminCodeNameResponse(r.getCode(), r.getName()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminCodeNameResponse> listPermissions() {
+        return permissionRepo.findAll(org.springframework.data.domain.Sort.by("code"))
+                .stream()
+                .map(p -> new AdminCodeNameResponse(p.getCode(), p.getName()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getRolePermissions(String roleCode) {
+        RoleEntity role = roleRepo.findByCode(normalizeUpper(roleCode))
+                .orElseThrow(() -> new ApiException(
+                        ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "Role not found.",
+                        Map.of("roleCode", roleCode)
+                ));
+        return rolePermissionRepo.findPermissionCodesByRoleId(role.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminCodeNameResponse> listModuleCatalog() {
+        return moduleRepo.findAll(org.springframework.data.domain.Sort.by("code"))
+                .stream()
+                .map(m -> new AdminCodeNameResponse(m.getCode(), m.getName()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminDepartmentResponse> listDepartments() {
+        return departmentRepo.findAll(org.springframework.data.domain.Sort.by("name"))
+                .stream()
+                .map(d -> new AdminDepartmentResponse(d.getId(), d.getCode(), d.getName(), d.getCreatedAt()))
+                .toList();
+    }
+
+    @Transactional
+    public AdminDepartmentResponse updateDepartment(UUID actorUserId, UUID departmentId, UpdateDepartmentRequest request, String ip, String userAgent) {
+        DepartmentEntity department = departmentRepo.findById(departmentId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "Department not found.", Map.of("id", departmentId.toString())));
+
+        String newCode = normalizeUpper(request.code());
+        departmentRepo.findByCode(newCode).ifPresent(existing -> {
+            if (!existing.getId().equals(departmentId)) {
+                throw new ApiException(ErrorCode.VALIDATION_ERROR, HttpStatus.CONFLICT, "Department code already in use.", Map.of("code", newCode));
+            }
+        });
+
+        department.setCode(newCode);
+        department.setName(request.name().trim());
+        departmentRepo.save(department);
+
+        auditService.record("ADMIN_DEPARTMENT_UPDATE", actor(actorUserId), null, null,
+                "{\"id\":\"" + departmentId + "\",\"code\":\"" + safe(newCode) + "\",\"ip\":\"" + safe(ip) + "\"}");
+        return new AdminDepartmentResponse(department.getId(), department.getCode(), department.getName(), department.getCreatedAt());
+    }
+
+    @Transactional
+    public void deleteDepartment(UUID actorUserId, UUID departmentId, String ip, String userAgent) {
+        DepartmentEntity department = departmentRepo.findById(departmentId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "Department not found.", Map.of("id", departmentId.toString())));
+        departmentRepo.delete(department);
+        auditService.record("ADMIN_DEPARTMENT_DELETE", actor(actorUserId), null, null,
+                "{\"id\":\"" + departmentId + "\",\"code\":\"" + safe(department.getCode()) + "\",\"ip\":\"" + safe(ip) + "\"}");
     }
 
     @Transactional

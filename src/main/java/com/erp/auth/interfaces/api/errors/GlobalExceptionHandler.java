@@ -7,6 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +37,13 @@ public class GlobalExceptionHandler {
 
         ApiErrorResponse body = ErrorResponseFactory.validation(details);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNotFound(NoResourceFoundException ex) {
+        log.warn("No resource found for path={}", ex.getResourcePath());
+        ApiErrorResponse body = ErrorResponseFactory.notFound();
+        return ResponseEntity.status(404).body(body);
     }
 
     @ExceptionHandler(Exception.class)

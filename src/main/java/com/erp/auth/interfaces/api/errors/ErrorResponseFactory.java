@@ -49,6 +49,16 @@ public final class ErrorResponseFactory {
         );
     }
 
+    public static ApiErrorResponse notFound() {
+        return new ApiErrorResponse(
+                ErrorCode.NOT_FOUND.name(),
+                "Resource not found.",
+                mdc("requestId"),
+                mdc("traceId"),
+                null
+        );
+    }
+
     public static ApiErrorResponse internal() {
         return new ApiErrorResponse(
                 ErrorCode.INTERNAL_ERROR.name(),

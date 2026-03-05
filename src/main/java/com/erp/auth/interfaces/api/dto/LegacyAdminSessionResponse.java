@@ -3,8 +3,8 @@ package com.erp.auth.interfaces.api.dto;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record ActiveSessionItem(
-        UUID sessionId,
+public record LegacyAdminSessionResponse(
+        UUID id,
         UUID userId,
         String username,
         String deviceId,
@@ -12,5 +12,6 @@ public record ActiveSessionItem(
         String userAgent,
         OffsetDateTime createdAt,
         OffsetDateTime lastSeenAt,
-        OffsetDateTime expiresAt
+        OffsetDateTime expiresAt,
+        boolean current
 ) {}

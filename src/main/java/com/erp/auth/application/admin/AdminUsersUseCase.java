@@ -17,7 +17,9 @@ import com.erp.auth.infrastructure.persistence.jpa.repository.UserModuleJpaRepos
 import com.erp.auth.infrastructure.persistence.jpa.repository.UserRoleJpaRepository;
 import com.erp.auth.infrastructure.security.PasswordHasher;
 import com.erp.auth.interfaces.api.dto.AdminCreateUserRequest;
+import com.erp.auth.interfaces.api.dto.AdminUserListItem;
 import com.erp.auth.interfaces.api.dto.AdminUserResponse;
+import org.springframework.data.domain.Sort;
 import com.erp.auth.interfaces.api.errors.ApiException;
 import com.erp.auth.interfaces.api.errors.ErrorCode;
 import org.springframework.http.HttpStatus;
@@ -65,6 +67,14 @@ public class AdminUsersUseCase {
         this.userDepartmentRepo = userDepartmentRepo;
         this.passwordHasher = passwordHasher;
         this.auditService = auditService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminUserListItem> listUsers() {
+        return userRepo.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+                .stream()
+                .map(u -> new AdminUserListItem(u.getId(), u.getUsername(), u.getEmail(), u.getStatus().name(), u.getCreatedAt()))
+                .toList();
     }
 
     @Transactional
@@ -185,6 +195,44 @@ public class AdminUsersUseCase {
                 moduleCodes,
                 departmentCodes
         );
+    }
+
+    @Transactional
+    public List<String> assignUserRoles(UUID actorUserId, UUID userId, List<String> roleCodes, String ip, String userAgent) {
+        UserEntity targetUser = userRepo.findById(userId)
+                .orElseThrow(() -> new ApiException(
+                        ErrorCode.VALIDATION_ERROR,
+                        HttpStatus.NOT_FOUND,
+                        "User not found.",
+                        Map.of("userId", userId.toString())
+                ));
+
+        List<String> normalized = normalizeCodes(roleCodes == null ? List.of() : roleCodes);
+        List<RoleEntity> roles = roleRepo.findByCodeIn(normalized);
+        if (roles.size() != normalized.size()) {
+            throw new ApiException(
+                    ErrorCode.VALIDATION_ERROR,
+                    HttpStatus.BAD_REQUEST,
+                    "Unknown role code(s).",
+                    Map.of("roles", findMissing(normalized, roles.stream().map(RoleEntity::getCode).toList()))
+            );
+        }
+
+        userRoleRepo.deleteByUserId(userId);
+        OffsetDateTime now = OffsetDateTime.now();
+        for (RoleEntity role : roles) {
+            UserRoleEntity row = new UserRoleEntity();
+            row.setUserId(userId);
+            row.setRoleId(role.getId());
+            row.setAssignedAt(now);
+            userRoleRepo.save(row);
+        }
+
+        UserEntity actor = userRepo.findById(actorUserId).orElse(null);
+        auditService.record("ADMIN_USER_ROLES_ASSIGN", actor, targetUser, null,
+                "{\"userId\":\"" + userId + "\",\"roles\":[" + toJsonArray(normalized) + "],"
+                        + "\"ip\":\"" + safe(ip) + "\",\"userAgent\":\"" + safe(userAgent) + "\"}");
+        return normalized;
     }
 
     @Transactional
