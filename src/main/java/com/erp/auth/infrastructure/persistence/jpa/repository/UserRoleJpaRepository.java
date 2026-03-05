@@ -21,5 +21,9 @@ public interface UserRoleJpaRepository extends JpaRepository<UserRoleEntity, Use
 
     @Modifying
     @Query("delete from UserRoleEntity ur where ur.userId = :userId")
+<<<<<<< HEAD
     void deleteByUserId(@Param("userId") UUID userId);
+=======
+    int deleteByUserId(UUID userId);
+>>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
 }

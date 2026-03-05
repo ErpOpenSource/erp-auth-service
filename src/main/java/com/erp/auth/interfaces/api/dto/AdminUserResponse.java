@@ -10,5 +10,6 @@ public record AdminUserResponse(
         String status,
         List<String> roles,
         List<String> modules,
-        List<String> departments
+        List<String> departments,
+        List<String> permissions
 ) {}

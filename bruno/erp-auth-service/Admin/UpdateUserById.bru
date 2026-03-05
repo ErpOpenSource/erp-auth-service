@@ -1,0 +1,43 @@
+meta {
+  name: Admin Update User By Id
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/admin/users/{{targetUserId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+  X-Request-Id: {{requestId}}
+  User-Agent: Bruno
+}
+
+body:json {
+  {
+    "username": "operador.ventas",
+    "email": "operador.ventas@erp.local",
+    "status": "ACTIVE",
+    "roles": ["USER"],
+    "modules": ["SALES"],
+    "departments": ["HQ"]
+  }
+}
+
+script:pre-request {
+  const rid = `bru-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  bru.setVar("requestId", rid);
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

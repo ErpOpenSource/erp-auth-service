@@ -43,6 +43,24 @@ public interface SessionJpaRepository extends JpaRepository<SessionEntity, UUID>
     @Query("""
         update SessionEntity s
         set s.revokedAt = :revokedAt
+        where s.user.id = :userId
+          and s.deviceId = :deviceId
+          and s.revokedAt is null
+    """)
+    int revokeByUserIdAndDeviceId(UUID userId, String deviceId, OffsetDateTime revokedAt);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update SessionEntity s
+        set s.revokedAt = :revokedAt
+        where s.id <> :sessionId and s.revokedAt is null
+    """)
+    int revokeAllExceptSessionId(UUID sessionId, OffsetDateTime revokedAt);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update SessionEntity s
+        set s.revokedAt = :revokedAt
         where s.user.id = :userId and s.revokedAt is null
     """)
     int revokeAllByUserId(UUID userId, OffsetDateTime revokedAt);

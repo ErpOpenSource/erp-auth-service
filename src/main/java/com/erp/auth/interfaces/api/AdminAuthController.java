@@ -12,6 +12,7 @@ import com.erp.auth.interfaces.api.dto.AdminCreatePermissionRequest;
 import com.erp.auth.interfaces.api.dto.AdminCreateUserRequest;
 import com.erp.auth.interfaces.api.dto.AdminDepartmentResponse;
 import com.erp.auth.interfaces.api.dto.AdminResetPasswordRequest;
+import com.erp.auth.interfaces.api.dto.AdminUpdateUserRequest;
 import com.erp.auth.interfaces.api.dto.AdminUserAccessResponse;
 import com.erp.auth.interfaces.api.dto.AdminUserListItem;
 import com.erp.auth.interfaces.api.dto.AdminUserResponse;
@@ -21,6 +22,8 @@ import com.erp.auth.interfaces.api.dto.PatchUserStatusRequest;
 import com.erp.auth.interfaces.api.dto.SeatsResponse;
 import com.erp.auth.interfaces.api.dto.UpdateDepartmentRequest;
 import com.erp.auth.interfaces.api.dto.UpdateSeatsRequest;
+import com.erp.auth.interfaces.api.errors.ApiException;
+import com.erp.auth.interfaces.api.errors.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -109,7 +112,11 @@ public class AdminAuthController {
 
     @DeleteMapping("/sessions/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+<<<<<<< HEAD
     public void revokeSessionLegacy(
+=======
+    public void revokeSessionDelete(
+>>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("id") UUID sessionId,
             HttpServletRequest http
@@ -119,13 +126,21 @@ public class AdminAuthController {
 
     @DeleteMapping("/sessions")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+<<<<<<< HEAD
     public void revokeAllOtherSessions(
+=======
+    public void revokeAllSessionsExceptCurrent(
+>>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
             @AuthenticationPrincipal Jwt jwt,
             HttpServletRequest http
     ) {
         adminSessionsUseCase.revokeAllExcept(
                 actorUserId(jwt),
+<<<<<<< HEAD
                 sessionId(jwt),
+=======
+                actorSessionId(jwt),
+>>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
                 http.getRemoteAddr(),
                 http.getHeader("User-Agent")
         );
@@ -139,6 +154,31 @@ public class AdminAuthController {
             HttpServletRequest http
     ) {
         return adminUsersUseCase.createUser(actorUserId(jwt), request, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
+    @GetMapping("/users/{id}")
+    public AdminUserResponse getUser(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID userId,
+            HttpServletRequest http
+    ) {
+        return adminUsersUseCase.getUser(actorUserId(jwt), userId, http.getRemoteAddr(), http.getHeader("User-Agent"));
+    }
+
+    @PutMapping("/users/{id}")
+    public AdminUserResponse updateUser(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID userId,
+            @Valid @RequestBody AdminUpdateUserRequest request,
+            HttpServletRequest http
+    ) {
+        return adminUsersUseCase.updateUser(
+                actorUserId(jwt),
+                userId,
+                request,
+                http.getRemoteAddr(),
+                http.getHeader("User-Agent")
+        );
     }
 
     @PostMapping("/users/{id}/lock")
@@ -354,6 +394,7 @@ public class AdminAuthController {
         return UUID.fromString(jwt.getSubject());
     }
 
+<<<<<<< HEAD
     private static UUID sessionId(Jwt jwt) {
         String sid = jwt.getClaimAsString("sid");
         if (sid == null || sid.isBlank()) {
@@ -363,6 +404,17 @@ public class AdminAuthController {
             return UUID.fromString(sid);
         } catch (IllegalArgumentException ignored) {
             return null;
+=======
+    private static UUID actorSessionId(Jwt jwt) {
+        String sid = jwt.getClaimAsString("sid");
+        if (sid == null || sid.isBlank()) {
+            throw new ApiException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Invalid access token.");
+        }
+        try {
+            return UUID.fromString(sid);
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Invalid access token.");
+>>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
         }
     }
 }

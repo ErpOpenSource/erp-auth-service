@@ -3,6 +3,7 @@ package com.erp.auth.infrastructure.security;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,6 +31,7 @@ import java.util.Collection;
 import java.util.List;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -52,7 +54,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/login", "/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/logout", "/logout/all").authenticated()
+<<<<<<< HEAD
                         .requestMatchers("/users/me/**").authenticated()
+=======
+                        .requestMatchers(HttpMethod.GET, "/users/me").authenticated()
+>>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().permitAll()

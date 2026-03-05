@@ -26,10 +26,16 @@ public class LogoutUseCase {
                 .orElseThrow(SessionRevokedException::new);
 
         OffsetDateTime now = OffsetDateTime.now();
-        int updated = sessionRepo.revokeById(session.getId(), now);
+        int updated = sessionRepo.revokeByUserIdAndDeviceId(
+                session.getUser().getId(),
+                session.getDeviceId(),
+                now
+        );
 
         auditService.record("LOGOUT", session.getUser(), session.getUser(), session,
                 "{\"sessionId\":\"" + session.getId() + "\",\"revoked\":" + (updated > 0)
+                        + ",\"revokedCount\":" + updated
+                        + ",\"deviceId\":\"" + safe(session.getDeviceId()) + "\""
                         + ",\"ip\":\"" + safe(cmd.ip()) + "\"}");
     }
 
