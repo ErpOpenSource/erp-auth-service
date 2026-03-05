@@ -62,12 +62,13 @@ class UserControllerSecurityTest {
 
         when(userService.getProfile(userId.toString()))
                 .thenReturn(new UserProfileResponse(
-                        userId.toString(),
+                        userId,
                         "operator",
                         "operator@erp.local",
                         "ACTIVE",
                         List.of("USER"),
                         List.of("AUTH"),
+                        List.of(),
                         List.of("AUTH:READ")
                 ));
 

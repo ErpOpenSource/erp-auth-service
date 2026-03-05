@@ -112,11 +112,7 @@ public class AdminAuthController {
 
     @DeleteMapping("/sessions/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-<<<<<<< HEAD
     public void revokeSessionLegacy(
-=======
-    public void revokeSessionDelete(
->>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("id") UUID sessionId,
             HttpServletRequest http
@@ -126,21 +122,13 @@ public class AdminAuthController {
 
     @DeleteMapping("/sessions")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-<<<<<<< HEAD
     public void revokeAllOtherSessions(
-=======
-    public void revokeAllSessionsExceptCurrent(
->>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
             @AuthenticationPrincipal Jwt jwt,
             HttpServletRequest http
     ) {
         adminSessionsUseCase.revokeAllExcept(
                 actorUserId(jwt),
-<<<<<<< HEAD
                 sessionId(jwt),
-=======
-                actorSessionId(jwt),
->>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
                 http.getRemoteAddr(),
                 http.getHeader("User-Agent")
         );
@@ -394,7 +382,6 @@ public class AdminAuthController {
         return UUID.fromString(jwt.getSubject());
     }
 
-<<<<<<< HEAD
     private static UUID sessionId(Jwt jwt) {
         String sid = jwt.getClaimAsString("sid");
         if (sid == null || sid.isBlank()) {
@@ -404,17 +391,6 @@ public class AdminAuthController {
             return UUID.fromString(sid);
         } catch (IllegalArgumentException ignored) {
             return null;
-=======
-    private static UUID actorSessionId(Jwt jwt) {
-        String sid = jwt.getClaimAsString("sid");
-        if (sid == null || sid.isBlank()) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Invalid access token.");
-        }
-        try {
-            return UUID.fromString(sid);
-        } catch (IllegalArgumentException ex) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED, "Invalid access token.");
->>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
         }
     }
 }

@@ -20,11 +20,8 @@ import com.erp.auth.infrastructure.persistence.jpa.repository.UserModuleJpaRepos
 import com.erp.auth.infrastructure.persistence.jpa.repository.UserRoleJpaRepository;
 import com.erp.auth.infrastructure.security.PasswordHasher;
 import com.erp.auth.interfaces.api.dto.AdminCreateUserRequest;
-<<<<<<< HEAD
-import com.erp.auth.interfaces.api.dto.AdminUserListItem;
-=======
 import com.erp.auth.interfaces.api.dto.AdminUpdateUserRequest;
->>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
+import com.erp.auth.interfaces.api.dto.AdminUserListItem;
 import com.erp.auth.interfaces.api.dto.AdminUserResponse;
 import org.springframework.data.domain.Sort;
 import com.erp.auth.interfaces.api.errors.ApiException;

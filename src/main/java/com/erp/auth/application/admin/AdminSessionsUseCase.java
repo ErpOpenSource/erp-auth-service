@@ -86,20 +86,6 @@ public class AdminSessionsUseCase {
         OffsetDateTime now = OffsetDateTime.now();
         UserEntity actor = userRepo.findById(actorUserId).orElse(null);
 
-        int updated = sessionRepo.revokeAllExceptSessionId(keepSessionId, now);
-
-        auditService.record("ADMIN_SESSION_REVOKE_ALL", actor, null, null,
-                "{\"keepSessionId\":\"" + keepSessionId + "\""
-                        + ",\"revokedCount\":" + updated
-                        + ",\"ip\":\"" + safe(ip) + "\""
-                        + ",\"userAgent\":\"" + safe(userAgent) + "\"}");
-    }
-
-    @Transactional
-    public void revokeAllExcept(UUID actorUserId, UUID keepSessionId, String ip, String userAgent) {
-        OffsetDateTime now = OffsetDateTime.now();
-        UserEntity actor = userRepo.findById(actorUserId).orElse(null);
-
         int revoked;
         if (keepSessionId == null) {
             revoked = sessionRepo.revokeAll(now);

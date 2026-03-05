@@ -54,11 +54,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/login", "/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/logout", "/logout/all").authenticated()
-<<<<<<< HEAD
                         .requestMatchers("/users/me/**").authenticated()
-=======
-                        .requestMatchers(HttpMethod.GET, "/users/me").authenticated()
->>>>>>> dd5ee767521ad1cf359493a0c563a84ff7327432
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().permitAll()

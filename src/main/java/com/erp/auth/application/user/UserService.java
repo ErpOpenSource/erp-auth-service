@@ -53,12 +53,13 @@ public class UserService {
 
         UserAuthorizationContext context = userAuthorizationService.resolveForUser(parsedUserId);
         return new UserProfileResponse(
-                user.getId().toString(),
+                user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getStatus().name(),
                 context.roles(),
                 context.modules(),
+                context.departments(),
                 context.permissions()
         );
     }
